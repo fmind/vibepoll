@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block page %}present{% endblock %}
+{% block title %}{{ config.title }} — stage{% endblock %}
+
+{% block body %}
+<main class="stage-screen" id="app">
+  <!-- Break screen. The QR is pinned to the right third for the whole break so
+       it never rotates out from under someone mid-scan; only the left two
+       thirds animate, cycling the welcome panel and each question in turn. -->
+  <section class="screen ambient" id="screen-ambient" hidden>
+    <div class="ambient-left">
+      <div class="panel" id="panel-welcome" hidden>
+        <p class="eyebrow">{{ config.subtitle }}</p>
+        <h1 class="hero">{{ config.title }}<span class="cursor" aria-hidden="true"></span></h1>
+        <p class="lede">Scan. Answer {{ config.questions | length }} questions.<br />Anonymously, no sign-up.</p>
+        <p class="counter"><strong id="a-people">0</strong> <span>people in</span></p>
+      </div>
+
+      <div class="panel" id="panel-question" hidden>
+        <p class="eyebrow"><span id="a-position"></span></p>
+        <h2 class="hero panel-title" id="a-title"></h2>
+        <ul class="bars ambient-bars" id="a-bars"></ul>
+        <p class="counter"><strong id="a-count">0</strong> <span>votes</span></p>
+      </div>
+    </div>
+
+    <aside class="ambient-right">
+      <div class="qr-frame">
+        <img class="qr" src="/qr.svg" alt="QR code linking to {{ settings.public_url }}" />
+      </div>
+      <p class="join-url">{{ settings.public_url.split('://')[1] }}</p>
+    </aside>
+  </section>
+
+  <!-- Review: the presenter has the room's attention and voting is closed, so
+       the question gets the full width and the QR is gone. -->
+  <section class="screen question-slide" id="screen-question" hidden>
+    <header class="slide-head">
+      <p class="eyebrow"><span id="q-position"></span></p>
+      <h1 class="hero question" id="q-title"></h1>
+    </header>
+    <ul class="bars big" id="q-bars"></ul>
+    <footer class="slide-foot">
+      <p class="counter"><strong id="q-count">0</strong> <span>votes</span></p>
+    </footer>
+  </section>
+
+  <section class="screen finale" id="screen-finished" hidden>
+    <h1 class="hero">The verdict<span class="cursor" aria-hidden="true"></span></h1>
+    <div class="finale-grid" id="finale"></div>
+  </section>
+
+  <!-- Presenter console: deliberately small and low-contrast so it disappears
+       on the projected image while staying usable on the laptop. -->
+  <aside class="console" id="console">
+    <div class="console-row">
+      <button type="button" data-action="slideshow" title="Break carousel (s)">Slideshow</button>
+      <button type="button" data-action="prev" title="Previous question (←)">←</button>
+      <button type="button" data-action="review" class="primary" title="Take the stage (r)">Review</button>
+      <button type="button" data-action="next" title="Next question (→)">→</button>
+      <button type="button" data-action="finish" title="Final board (f)">Finale</button>
+      <button type="button" data-action="clear" class="danger" title="Delete every vote">Wipe</button>
+    </div>
+    <p class="console-hint" id="console-hint">space · ← → · s · r · f</p>
+  </aside>
+
+  <!-- Always-on bottom strip: where the source lives, and whether this screen
+       is still talking to the server. Both belong in the presenter's periphery
+       rather than on a panel that rotates away. -->
+  <footer class="status-bar">
+    {% if config.repo %}
+    <p class="repo"><span class="prompt" aria-hidden="true">$</span> git clone {{ config.repo }}</p>
+    {% else %}
+    <p class="repo"></p>
+    {% endif %}
+    <p class="link-state" id="link" hidden>◍ reconnecting…</p>
+  </footer>
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/present.js" defer></script>
+{% endblock %}

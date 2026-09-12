@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block page %}vote{% endblock %}
+
+{% block body %}
+<main class="phone" id="app">
+  <header class="phone-head">
+    <p class="eyebrow">{{ config.subtitle }}</p>
+    <h1 class="wordmark">{{ config.title }}</h1>
+    <div class="pips" id="pips" hidden aria-label="Progress through the questions"></div>
+  </header>
+
+  <!-- Self-paced voting: one question at a time, advancing on each answer. -->
+  <section class="stage" id="stage-voting" hidden>
+    <h2 class="question" id="question-title"></h2>
+    <p class="muted subtitle" id="question-subtitle"></p>
+    <ul class="options" id="options" role="radiogroup" aria-labelledby="question-title"></ul>
+    <div class="stage-nav">
+      <button type="button" class="link-button" id="back" hidden>← previous</button>
+      <button type="button" class="link-button" id="forward" hidden>next →</button>
+    </div>
+  </section>
+
+  <!-- Every question answered, voting still open. -->
+  <section class="card stage" id="stage-done" hidden>
+    <div class="tick" aria-hidden="true">✓</div>
+    <h2>All done. Thank you.</h2>
+    <p class="muted">Your answers are in and anonymous. Watch the big screen — the results are building on it right now.</p>
+    <button type="button" class="link-button" id="review-answers">Change an answer</button>
+  </section>
+
+  <!-- The presenter has taken the stage: get eyes off the phones. -->
+  <section class="card stage" id="stage-closed" hidden>
+    <div class="look-up" aria-hidden="true">👆</div>
+    <h2 id="closed-title">Look up.</h2>
+    <p class="muted" id="closed-copy">Voting is closed and the results are on the screen.</p>
+  </section>
+
+  <section class="card stage" id="stage-offline" hidden>
+    <h2>Reconnecting…</h2>
+    <p class="muted">Conference Wi-Fi doing conference Wi-Fi things. Everything you have answered is already saved.</p>
+  </section>
+
+  <footer class="phone-foot">
+    <p class="muted tiny">Anonymous. We store a random id from your browser and nothing else.</p>
+    {% if config.repo %}
+    <p class="tiny repo-line"><a href="{{ config.repo }}" rel="noopener noreferrer" target="_blank">{{ config.repo | replace("https://", "") }}</a></p>
+    {% endif %}
+  </footer>
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/vote.js" defer></script>
+{% endblock %}

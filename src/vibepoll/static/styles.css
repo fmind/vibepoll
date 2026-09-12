@@ -1,0 +1,564 @@
+/* vibepoll — one stylesheet for a phone in a dark room and a projector at the
+   back of a lecture hall. Both surfaces are dark on purpose: a white screen at
+   18:30 in an auditorium is a hostile act. */
+
+:root {
+  --bg: #08090d;
+  --surface: #12141c;
+  --surface-2: #1a1d28;
+  --line: #262b3a;
+  --text: #f2f4f8;
+  --muted: #8d93a6;
+  --accent: #c2ff3d;
+  --accent-soft: rgba(194, 255, 61, 0.14);
+  --cyan: #6ee7ff;
+  --danger: #ff5c6c;
+  --radius: 14px;
+  --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* A single radial wash keeps the dark background from reading as "broken
+   projector" without costing a background image request. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(120% 90% at 50% -10%, rgba(194, 255, 61, 0.10), transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+[hidden] { display: none !important; }
+
+h1, h2, h3 { margin: 0; font-weight: 800; letter-spacing: -0.02em; line-height: 1.08; }
+p { margin: 0; }
+
+.muted { color: var(--muted); }
+.tiny { font-size: 0.78rem; }
+
+.eyebrow {
+  font-family: var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+/* ---------------------------------------------------------------- phone --- */
+
+.phone {
+  position: relative;
+  z-index: 1;
+  max-width: 34rem;
+  margin: 0 auto;
+  padding: max(1.25rem, env(safe-area-inset-top)) 1.1rem calc(1.5rem + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  gap: 1.25rem;
+}
+
+.phone-head { display: grid; gap: 0.35rem; }
+.wordmark { font-size: 1.45rem; }
+.stage { display: grid; gap: 0.9rem; }
+.phone .stage { flex: 1; align-content: start; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1.5rem 1.25rem;
+  text-align: center;
+  align-content: center;
+  gap: 0.7rem;
+}
+
+.question { font-size: 1.5rem; line-height: 1.2; text-wrap: balance; }
+.subtitle { font-size: 0.9rem; font-style: italic; }
+
+/* Options are the only thing a phone user touches: 56px minimum target, full
+   width, and a selected state that survives being read at arm's length. */
+.options { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.55rem; }
+
+.option {
+  width: 100%;
+  min-height: 3.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.85rem 1rem;
+  text-align: left;
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1.35;
+  color: var(--text);
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: transform 0.12s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.option:hover { border-color: #39405a; }
+.option:active { transform: scale(0.985); }
+
+.option .key {
+  flex: none;
+  width: 1.8rem;
+  height: 1.8rem;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1.5px solid var(--line);
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.option[aria-checked="true"] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.option[aria-checked="true"] .key {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #0b1000;
+}
+
+.option:focus-visible,
+.console button:focus-visible { outline: 3px solid var(--cyan); outline-offset: 2px; }
+
+/* A dot per question: answered, current, still to come. Cheaper to read at a
+   glance on a phone than "Question 3 of 5", and it shows the shape of the deck
+   so nobody wonders how much longer this goes on. */
+.pips { display: flex; gap: 0.35rem; padding-top: 0.15rem; }
+.pip {
+  width: 1.6rem;
+  height: 0.3rem;
+  border-radius: 999px;
+  background: var(--line);
+  transition: background 0.25s ease;
+}
+.pip[data-answered="true"] { background: var(--accent); }
+.pip[data-current="true"] { background: var(--cyan); }
+
+.stage-nav { display: flex; justify-content: space-between; gap: 0.5rem; }
+.stage-nav:has(> :only-child) { justify-content: center; }
+
+.link-button {
+  justify-self: center;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--muted);
+  background: none;
+  border: none;
+  padding: 0.5rem;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.link-button:hover { color: var(--text); }
+
+.tick {
+  font-size: 2.4rem;
+  line-height: 1;
+  color: var(--accent);
+  font-weight: 800;
+}
+.look-up { font-size: 2.6rem; line-height: 1; animation: nudge 1.8s ease-in-out infinite; }
+
+@keyframes nudge {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-0.35rem); }
+}
+
+.phone-foot { margin-top: auto; text-align: center; display: grid; gap: 0.4rem; }
+.repo-line { font-family: var(--mono); }
+.repo-line a { color: var(--muted); text-decoration: none; border-bottom: 1px solid var(--line); }
+.repo-line a:hover { color: var(--accent); }
+
+/* ------------------------------------------------------------ bar charts --- */
+
+.bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+
+.bar {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* The fill is a pseudo-element behind the label so long answers stay readable
+   at any percentage instead of being clipped by the bar. */
+.bar::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--pct, 0%);
+  background: var(--surface-2);
+  z-index: -1;
+  transition: width 0.75s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.bar[data-winner="true"] { border-color: var(--accent); }
+.bar[data-winner="true"]::before { background: var(--accent-soft); }
+.bar[data-winner="true"] .bar-value { color: var(--accent); }
+
+.bar-label { font-size: 0.95rem; line-height: 1.3; }
+.bar-value {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar::before { transition: none; }
+  .look-up,
+  .cursor { animation: none; }
+  #screen-question:not([hidden]),
+  #screen-finished:not([hidden]) { animation: none; }
+}
+
+/* ------------------------------------------------------------- projector --- */
+
+/* A barely-there scanline grid. Enough to read as a terminal from the back of
+   the room, light enough not to shimmer against a projector's own pixel grid.
+   Phones are left alone: at that size it only costs contrast on small text. */
+.stage-screen::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(to bottom, rgba(194, 255, 61, 0.035) 0 1px, transparent 1px 3px);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* A block cursor parked after a heading, because this is a poll about agents
+   written by people who live in terminals. */
+.cursor {
+  display: inline-block;
+  width: 0.55em;
+  height: 0.92em;
+  margin-left: 0.12em;
+  background: var(--accent);
+  vertical-align: -0.06em;
+  animation: blink 1.1s steps(1, end) infinite;
+}
+
+@keyframes blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+/* Fixed strip under everything: where the source lives, and whether this screen
+   is still connected. Both belong in the presenter's periphery, not on a panel
+   that rotates away. The stage screen reserves 9vh of bottom padding for it. */
+.status-bar {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 4;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.45rem clamp(0.8rem, 2vw, 1.6rem);
+  font-family: var(--mono);
+  /* Peripheral, but a projector at the back of a hall still has to resolve it:
+     this is the line that tells the room where the source lives. */
+  font-size: clamp(0.75rem, 1.05vw, 1.05rem);
+  color: #6f758a;
+  border-top: 1px solid var(--line);
+  background: rgba(8, 9, 13, 0.72);
+}
+
+.status-bar .prompt { color: var(--accent); font-weight: 700; }
+.status-bar .link-state { color: var(--danger); }
+
+.stage-screen {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  padding: 3vh 4vw 9vh;
+}
+
+.screen { align-self: center; width: 100%; display: grid; gap: 2.2vh; }
+
+.hero { font-size: clamp(2rem, 4.6vw, 4.2rem); text-wrap: balance; }
+.lede { font-size: clamp(1rem, 1.5vw, 1.6rem); color: var(--muted); text-wrap: balance; }
+
+.stage-screen .eyebrow { font-size: clamp(0.8rem, 1.1vw, 1.1rem); }
+
+/* Break screen: the left two thirds rotate, the right third never moves.
+   `minmax(0, …)` on the rotating column stops a long answer label from pushing
+   the QR off the edge — grid columns floor at their content width otherwise. */
+.ambient {
+  align-self: stretch;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  /* Stretch, not center: the rotating column has to fill the row before its
+     `1fr` bar track means anything. Centred, the column is sized to its own
+     content, `1fr` collapses to min-content, and the bars end up as a thin
+     strip floating in dead space. */
+  align-items: stretch;
+  gap: clamp(1.5rem, 3vw, 3.5rem);
+}
+
+.ambient-left {
+  min-width: 0;
+  /* Both panels occupy the same cell so the one coming in does not shift the
+     layout of the one going out. */
+  display: grid;
+  grid-template-areas: "panel";
+  align-items: stretch;
+}
+
+.ambient-left .panel {
+  grid-area: panel;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  gap: 1.2vh;
+}
+
+/* Nothing to fill the height with, so this one sits in the middle. */
+#panel-welcome { align-content: center; }
+
+/* The question panel is the tall one: title, six bars, a count. The bars take
+   the leftover height and share it equally, which both fills the column and
+   guarantees six of them always fit. */
+#panel-question {
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  align-content: stretch;
+  padding: 2vh 0;
+}
+
+.panel-title {
+  font-size: clamp(1.1rem, min(2vw, 3.4vh), 2.1rem);
+  line-height: 1.15;
+}
+
+.ambient-bars {
+  min-height: 0;
+  grid-auto-rows: minmax(0, 1fr);
+  align-content: stretch;
+  gap: 0.7vh;
+}
+
+.ambient-bars .bar { min-height: 0; padding: 0 clamp(0.7rem, 1.1vw, 1.2rem); }
+.ambient-bars .bar-label { font-size: clamp(0.7rem, min(1.05vw, 1.85vh), 1.15rem); line-height: 1.2; }
+.ambient-bars .bar-value { font-size: clamp(0.7rem, min(1.05vw, 1.85vh), 1.15rem); }
+
+.ambient-right {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 1.2vh;
+  min-width: 0;
+}
+
+.join-url {
+  font-family: var(--mono);
+  font-size: clamp(1rem, 1.9vw, 2rem);
+  font-weight: 800;
+  color: var(--accent);
+  letter-spacing: -0.01em;
+  word-break: break-all;
+}
+
+.qr-frame {
+  background: #fff;
+  border-radius: 20px;
+  padding: clamp(0.7rem, 1.4vw, 1.5rem);
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  width: min(100%, 62vh);
+}
+
+.qr { width: 100%; height: 100%; color: #000; display: block; }
+
+.counter { font-family: var(--mono); font-size: clamp(1rem, 1.5vw, 1.5rem); color: var(--muted); }
+.counter strong {
+  font-size: clamp(1.8rem, 3.4vw, 3.4rem);
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  margin-right: 0.4rem;
+}
+
+/* A question slide fills the screen: title on top, bars in the middle, the
+   vote count and the standing QR pinned to the bottom.
+   `minmax(0, 1fr)` on the middle row and `min-height: 0` on the list are what
+   let the bars shrink instead of pushing the footer off a 1280x720 projector —
+   a plain `1fr` floors at the content's intrinsic height and overflows. */
+.question-slide {
+  align-self: stretch;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 1.6vh;
+}
+
+.question-slide #q-bars {
+  min-height: 0;
+  grid-auto-rows: 1fr;
+  align-content: stretch;
+}
+
+/* Sized against the viewport height, because height is the binding constraint
+   here: six bars, a title and a footer have to share one screen. */
+.question-slide .bars.big .bar { padding: 0 clamp(0.7rem, 1.2vw, 1.3rem); }
+.question-slide .bars.big .bar-label { font-size: clamp(0.85rem, min(1.3vw, 2.2vh), 1.5rem); }
+.question-slide .bars.big .bar-value { font-size: clamp(0.9rem, min(1.6vw, 2.4vh), 1.9rem); }
+.question-slide .hero { font-size: clamp(1.3rem, min(2.8vw, 4.4vh), 2.8rem); }
+
+.slide-head { display: grid; gap: 1vh; }
+.slide-foot {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 2rem;
+}
+
+/* Only the review and finale screens fade in wholesale. The break panels get
+   their entrance from script, replayed on every rotation. */
+#screen-question:not([hidden]),
+#screen-finished:not([hidden]) { animation: slide-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+@keyframes slide-in {
+  from { opacity: 0; transform: translateY(1.2rem); }
+  to { opacity: 1; transform: none; }
+}
+
+.bar-key {
+  font-family: var(--mono);
+  display: inline-grid;
+  place-items: center;
+  width: 1.5em;
+  height: 1.5em;
+  margin-right: 0.6em;
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--accent);
+  font-size: 0.7em;
+  font-weight: 800;
+  vertical-align: 0.1em;
+}
+
+.bars.big { gap: 0.7rem; }
+.bars.big .bar { padding: 1.1rem 1.3rem; border-radius: 12px; }
+.bars.big .bar-label { font-size: clamp(1rem, 1.35vw, 1.6rem); }
+.bars.big .bar-value { font-size: clamp(1.1rem, 1.7vw, 2rem); }
+
+/* Finale: every question and every option on one screen, so the room can argue
+   about all of them at once and nobody has to scroll a projector. The card
+   metrics below are deliberately tight — five cards of six bars must fit
+   1280x720 without clipping, which is the smallest projector worth planning
+   for. Scrolling here would hide the last answers at the moment they land. */
+.finale { align-content: start; gap: 1.4vh; padding-bottom: 4vh; }
+.finale .hero { font-size: clamp(1.6rem, 3vw, 2.6rem); }
+.finale-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(22rem, 100%), 1fr));
+  gap: clamp(0.5rem, 1vw, 0.9rem);
+}
+
+.finale-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: clamp(0.6rem, 1vw, 0.9rem);
+  display: grid;
+  gap: 0.5rem;
+  align-content: start;
+}
+
+.finale-card h2 { font-size: clamp(0.8rem, 0.95vw, 1rem); line-height: 1.25; }
+.finale-card .bars { gap: 0.25rem; }
+.finale-card .bar {
+  background: var(--surface-2);
+  border-color: transparent;
+  padding: 0.3rem 0.55rem;
+  border-radius: 7px;
+  gap: 0.5rem;
+}
+.finale-card .bar::before { background: #232838; }
+.finale-card .bar[data-winner="true"]::before { background: var(--accent-soft); }
+.finale-card .bar[data-winner="true"] { border-color: var(--accent); }
+.finale-card .bar-label { font-size: clamp(0.68rem, 0.78vw, 0.82rem); line-height: 1.25; }
+.finale-card .bar-value { font-size: clamp(0.68rem, 0.78vw, 0.82rem); }
+
+/* --------------------------------------------------------------- console --- */
+
+.console {
+  position: fixed;
+  left: 50%;
+  /* Clear of the status bar below it. */
+  bottom: 2.6rem;
+  transform: translateX(-50%);
+  z-index: 5;
+  display: grid;
+  gap: 0.3rem;
+  justify-items: center;
+  padding: 0.5rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(18, 20, 28, 0.82);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(8px);
+  opacity: 0.28;
+  transition: opacity 0.2s ease;
+}
+
+/* Invisible until the presenter reaches for it: the projector shows the poll,
+   not the controls. */
+.console:hover,
+.console:focus-within { opacity: 1; }
+
+.console-row { display: flex; gap: 0.3rem; flex-wrap: wrap; justify-content: center; }
+
+.console button {
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.4rem 0.85rem;
+  cursor: pointer;
+}
+
+.console button:hover { background: #242a3a; }
+.console button.primary { background: var(--accent); border-color: var(--accent); color: #0b1000; }
+.console button.danger { color: var(--danger); }
+.console-hint { font-size: 0.65rem; color: var(--muted); letter-spacing: 0.08em; }
+
+@media (max-width: 900px) {
+  .ambient { grid-template-columns: 1fr; justify-items: center; text-align: center; }
+  .qr-frame { width: min(60vw, 34vh); }
+}

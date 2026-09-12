@@ -1,0 +1,113 @@
+# Docs: https://packaging.python.org/en/latest/specifications/declaring-project-metadata/
+
+[project]
+name = "vibepoll"
+version = "0.1.0"
+description = "Live audience poll for a meetup: scan a QR code, answer on your phone, results on the projector"
+readme = "README.md"
+requires-python = ">=3.14"
+license = "MIT"
+authors = [{ name = "Médéric Hurier" }]
+keywords = ["poll", "audience", "meetup", "presentation", "litestar"]
+dependencies = [
+  "google-cloud-firestore>=2.22.0,<3",
+  "granian>=2.8.2,<3",
+  "jinja2>=3.1.6,<4",
+  "litestar>=2.24.0,<3",
+  "pydantic>=2.13.5,<3",
+  "pyyaml>=6.0.3,<7",
+  "segno>=1.6.6,<2",
+]
+
+[dependency-groups]
+dev = [
+  "granian[reload]>=2.8.2,<3",
+  "httpx>=0.28.1,<0.29",
+  "lefthook>=2.1.12,<3",
+  "pytest-asyncio>=1.3.0,<2",
+  "pytest-cov>=7.1.0,<8",
+  "pytest>=9.1.1,<10",
+  "ruff>=0.16.6,<0.17",
+  "ty>=0.0.78,<0.1",
+  "types-pyyaml>=6.0.12,<7",
+]
+
+[project.urls]
+Homepage = "https://github.com/fmind/vibepoll"
+Repository = "https://github.com/fmind/vibepoll"
+Issues = "https://github.com/fmind/vibepoll/issues"
+
+[project.scripts]
+vibepoll = "vibepoll.__main__:main"
+
+[build-system]
+requires = ["uv_build>=0.12.10,<0.13"]
+build-backend = "uv_build"
+
+[tool.ruff]
+line-length = 120
+target-version = "py314"
+
+[tool.ruff.format]
+line-ending = "lf"
+quote-style = "double"
+
+[tool.ruff.lint]
+select = [
+  "A",
+  "ARG",
+  "ASYNC",
+  "B",
+  "C4",
+  "E",
+  "ERA",
+  "F",
+  "FA",
+  "FURB",
+  "I",
+  "ISC",
+  "LOG",
+  "N",
+  "PERF",
+  "PGH",
+  "PIE",
+  "PT",
+  "PTH",
+  "Q",
+  "RET",
+  "RSE",
+  "RUF",
+  "S",
+  "SIM",
+  "SLF",
+  "T10",
+  "T20",
+  "TID",
+  "UP",
+  "W",
+]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "T201"]
+
+[tool.ty.environment]
+python-version = "3.14"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["-ra", "--strict-config", "--strict-markers"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+filterwarnings = ["error"]
+pythonpath = ["src", "."]
+xfail_strict = true
+
+[tool.coverage.run]
+branch = true
+source = ["src"]
+omit = ["scripts/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true

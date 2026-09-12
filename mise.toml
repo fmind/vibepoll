@@ -1,0 +1,130 @@
+# Docs: https://mise.jdx.dev/configuration.html
+
+[env]
+APP_NAME = "vibepoll"
+IMAGE_ARCHIVE = "tmp/vibepoll-image.tar"
+
+[settings.task]
+run_auto_install = false
+
+[tools]
+"aqua:astral-sh/uv" = "0.12.10"
+actionlint = "1.7.8"
+dprint = "0.57.4"
+gitleaks = "8.30.1"
+hadolint = "2.15.1"
+python = "3.14.7"
+trivy = "0.74.0"
+zizmor = "1.17.0"
+
+[tasks.all]
+alias = "a"
+description = "Format, check, and test everything"
+# The production image is deliberately not part of the gate: it needs a Docker
+# daemon, which neither the hooks nor CI should require. Run check:image before
+# a deploy instead.
+run = ["mise run format", "mise run check", "mise run test"]
+
+[tasks.check]
+alias = "c"
+description = "Run all static checks"
+depends = [
+  "check:actions",
+  "check:dockerfile",
+  "check:format",
+  "check:leaks",
+  "check:lint",
+  "check:types",
+  "check:vuln",
+]
+
+[tasks."check:actions"]
+description = "Validate GitHub Actions workflows"
+run = ["actionlint", "zizmor --offline .github/"]
+
+[tasks."check:dockerfile"]
+description = "Lint the Dockerfile (hadolint)"
+run = "hadolint Dockerfile"
+
+[tasks."check:format"]
+description = "Check formatting and the lockfile"
+run = ["uv lock --check", "uv run --locked ruff format --check", "dprint check"]
+
+[tasks."check:leaks"]
+description = "Scan the working tree and recent commits for leaked secrets"
+depends = ["check:leaks:tree", "check:leaks:history"]
+
+[tasks."check:leaks:tree"]
+description = "Scan working-tree files, including untracked files"
+run = "gitleaks dir . --redact=100 --verbose"
+
+[tasks."check:leaks:history"]
+description = "Scan the latest 100 commits reachable from HEAD"
+# An unborn HEAD has no history; check:leaks:tree still scans its files.
+run = 'gitleaks git --redact=100 --log-opts="--max-count=100 --ignore-missing HEAD --" --verbose'
+
+[tasks."check:leaks:staged"]
+description = "Scan only staged changes before committing"
+run = "gitleaks git --redact=100 --staged --verbose"
+
+[tasks."check:lint"]
+description = "Lint Python sources (ruff)"
+run = "uv run --locked ruff check"
+
+[tasks."check:types"]
+description = "Type-check Python sources (ty)"
+run = "uv run --locked ty check"
+
+[tasks."check:vuln"]
+description = "Scan Python dependencies for known vulnerabilities"
+run = "env -u TRIVY_CONFIG trivy fs --exit-code=1 --severity HIGH,CRITICAL --scanners vuln uv.lock"
+
+[tasks."check:image"]
+description = "Build and scan the production OCI image"
+depends = ["build:image"]
+run = 'env -u TRIVY_CONFIG trivy image --input "$IMAGE_ARCHIVE" --platform linux/amd64 --exit-code=1 --severity HIGH,CRITICAL --ignore-unfixed --scanners vuln,secret'
+
+[tasks."build:image"]
+description = "Build the linux/amd64 production OCI image as a local archive"
+run = 'mkdir -p tmp && docker buildx build --platform linux/amd64 --tag "$APP_NAME:local" --output "type=docker,dest=$IMAGE_ARCHIVE" .'
+
+[tasks.format]
+alias = "f"
+description = "Format all sources and documents"
+depends = ["format:dprint", "format:python"]
+
+[tasks."format:dprint"]
+description = "Format JSON, Markdown, TOML, YAML with dprint"
+run = "dprint fmt --allow-no-files"
+
+[tasks."format:python"]
+description = "Format Python sources and imports (ruff)"
+run = ["mise run format:imports", "mise run format:ruff"]
+
+[tasks."format:imports"]
+description = "Sort Python imports"
+run = "uv run --locked ruff check --select=I --fix --force-exclude"
+
+[tasks."format:ruff"]
+description = "Format Python sources"
+run = "uv run --locked ruff format --force-exclude"
+
+[tasks.install]
+alias = "i"
+description = "Install locked dependencies and git hooks"
+run = ["uv sync --locked --all-groups", "uv run lefthook install"]
+
+[tasks.test]
+alias = "t"
+description = "Run the offline test suite with the coverage gate"
+run = "uv run --locked pytest --cov --cov-fail-under=85"
+
+[tasks.watch]
+alias = "w"
+description = "Run the dev server with live reload"
+run = 'GRANIAN_PORT="${PORT:-8080}" uv run --locked granian --interface asgi --factory --reload --host 0.0.0.0 vibepoll.app:create_app'
+
+[tasks.deploy]
+description = "Deploy to Cloud Run (requires --project)"
+raw_args = true
+run = "uv run --locked python scripts/deploy.py"

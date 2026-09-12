@@ -1,0 +1,103 @@
+# Poll definition for vibepoll.
+#
+# This is the deck vibepoll was built for: Agentic AI Night #1, the AAIF
+# Luxembourg launch. It ships as the default so the app runs out of the box and
+# so there is a worked example to copy. Replace it with your own questions, or
+# keep yours elsewhere and point VIBEPOLL_CONFIG at it.
+#
+# Prose is quoted throughout on purpose. Unquoted YAML scalars eat a trailing
+# `#1` as a comment and choke on a `: ` inside a label, and `yes`/`no`/`on`/`off`
+# parse as booleans — so an option id spelled like one has to be quoted too.
+# Quoting everything makes this file safe to edit without knowing any of that.
+
+id: aaif-luxembourg-1 # Firestore document key. Change it to start a fresh poll.
+title: "Agentic AI Night #1"
+subtitle: "AAIF Luxembourg Launch"
+repo: https://github.com/fmind/vibepoll # shown on the stage screen; omit to hide it
+panel_seconds: 5 # dwell per panel while the break carousel is running
+
+questions:
+  - id: merger
+    title: "Are you happy about the merger between AAIF and the MLOps Community?"
+    subtitle: "Be honest, nobody can trace this back to you."
+    options:
+      - id: "yes"
+        label: "Yes"
+      - id: boring
+        label: "Yes, MLOps was too technical and boring anyway"
+      - id: overlord
+        label: "Yes, I want our future AI overlord to recognise my worth and contribution"
+      - id: pizza
+        label: "I don't care, I'm only here for the free food and pizza"
+      - id: hardcore
+        label: "No, MLOps Community was hardcore and I liked it"
+      - id: torch
+        label: "No, who carries the torch for MLOps now?"
+
+  - id: project
+    title: "Which AAIF project should we cover in a future session?"
+    subtitle: "We will actually run the winner. Choose responsibly."
+    options:
+      - id: mcp
+        label: "MCP — everyone says they use it, nobody read the spec"
+      - id: a2a
+        label: "A2A — agents talking to agents about agents"
+      - id: goose
+        label: "goose — the agent, not the bird"
+      - id: agentsmd
+        label: "AGENTS.md — a Markdown file got a Linux Foundation seat, discuss"
+      - id: gateway
+        label: "agentgateway — the plumbing nobody applauds until it leaks"
+      - id: gtavi
+        label: "The AAIF colour scheme (and whether GTA VI ships first)"
+
+  - id: usecase
+    title: "Which agent use case actually boosts your productivity?"
+    subtitle: "Actually. Not the one you put in the slide deck."
+    options:
+      - id: coding
+        label: "Coding (shocking, I know)"
+      - id: workspace
+        label: "Workspace chores: email, slides, calendar Tetris"
+      - id: business
+        label: "Business: legal, finance, procurement PDFs"
+      - id: research
+        label: "Research, and the 47 tabs I will never read"
+      - id: love
+        label: "Writing love messages (and apology messages)"
+      - id: pokemon
+        label: "Selling Pokémon cards on eBay"
+
+  - id: failure
+    title: "What is your agent's most impressive failure so far?"
+    subtitle: "Warm-up for the keynote: how reliable are your AI agents, really?"
+    options:
+      - id: hallucinated
+        label: "Confidently invented an API that has never existed"
+      - id: deleted
+        label: "Deleted something it was explicitly told not to touch"
+      - id: looped
+        label: "Looped forever, burning tokens like a patio heater"
+      - id: selftest
+        label: "Passed every single test it wrote for itself"
+      - id: liedone
+        label: "Told me the task was complete. It was not."
+      - id: perfect
+        label: "Nothing. My agent is perfect. (I do not use agents.)"
+
+  - id: commit
+    title: "Honestly: how much of your last production commit did you write?"
+    subtitle: "This room is full of witnesses. Choose carefully."
+    options:
+      - id: all
+        label: "All of it. I type like it's 2019."
+      - id: most
+        label: "Most of it, the agent did the boring parts"
+      - id: half
+        label: "Half, and I reviewed every line. Really."
+      - id: agent
+        label: "Mostly the agent, I did the code review"
+      - id: unread
+        label: "I approved a diff I did not fully read"
+      - id: blame
+        label: "git blame says the agent, my manager says me"

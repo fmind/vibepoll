@@ -1,0 +1,13 @@
+**/__pycache__
+.git
+.github
+lefthook.yml
+.pytest_cache
+.ruff_cache
+.ty_cache
+.venv
+dist
+htmlcov
+scripts
+tests
+tmp
