@@ -6,7 +6,7 @@ import pytest
 
 from tests.conftest import make_config
 from vibepoll.config import PollConfig
-from vibepoll.store import MemoryRepository, Phase, Poll, PollState
+from vibepoll.store import MemoryRepository, Phase, Poll, PollState, VoteRecord
 
 
 @pytest.fixture
@@ -82,7 +82,7 @@ async def test_changing_an_answer_moves_the_vote_instead_of_adding_one(poll: Pol
     assert poll.voted_count(question_id) == 1
 
 
-async def test_results_rank_by_count_and_mark_a_single_winner(poll: Poll, config: PollConfig) -> None:
+async def test_results_mark_a_single_winner(poll: Poll, config: PollConfig) -> None:
     question = config.questions[0]
     for index, voter in enumerate(("a", "b", "c", "d")):
         await poll.cast(question.id, voter, question.options[0 if index < 3 else 1].id)
@@ -115,8 +115,8 @@ async def test_breaking_a_tie_restores_a_single_winner(poll: Poll, config: PollC
     await poll.cast(question.id, "voter-3", question.options[1].id)
 
     rows = poll.results(question)["rows"]
-    assert [row["winner"] for row in rows] == [True, False, False, False]
-    assert rows[0]["id"] == question.options[1].id
+    assert [row["winner"] for row in rows] == [False, True, False, False]
+    assert rows[1]["id"] == question.options[1].id
 
 
 async def test_results_carry_no_labels(poll: Poll, config: PollConfig) -> None:
@@ -224,3 +224,37 @@ async def test_a_slow_subscriber_is_never_dropped_from_the_fan_out(poll: Poll, c
         queue.get_nowait()
         await poll.cast(question.id, "voter-late", question.options[1].id)
         assert queue.qsize() == 1
+
+
+async def test_failed_vote_is_not_counted_or_broadcast(config: PollConfig) -> None:
+    class UnavailableRepository(MemoryRepository):
+        async def save_vote(self, vote: VoteRecord) -> None:
+            raise OSError(f"storage unavailable for {vote.question_id}")
+
+    poll = Poll(UnavailableRepository(), config)
+    question_id, options = first(config)
+    async with poll.subscribe() as queue:
+        with pytest.raises(OSError, match="storage unavailable"):
+            await poll.cast(question_id, "voter-1", options[0])
+        assert poll.voted_count(question_id) == 0
+        assert poll.answers_of("voter-1") == {}
+        assert queue.empty()
+
+
+async def test_failed_control_preserves_the_visible_phase(config: PollConfig) -> None:
+    class UnavailableRepository(MemoryRepository):
+        async def save_state(self, state: PollState) -> None:
+            raise OSError(f"storage unavailable for {state.phase}")
+
+    poll = Poll(UnavailableRepository(), config)
+    with pytest.raises(OSError, match="storage unavailable"):
+        await poll.advance("review")
+    assert poll.state.phase is Phase.SLIDESHOW
+
+
+async def test_results_preserve_the_answer_scale_order(poll: Poll, config: PollConfig) -> None:
+    question = config.questions[0]
+    await poll.cast(question.id, "voter-1", question.options[-1].id)
+    rows = poll.results(question)["rows"]
+    assert [row["id"] for row in rows] == [option.id for option in question.options]
+    assert rows[-1]["winner"]

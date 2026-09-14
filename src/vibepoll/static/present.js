@@ -23,9 +23,6 @@ const panels = {
   question: el("panel-question"),
 };
 
-/** A, B, C … then plain numbers past Z, for decks with many options. */
-const optionKey = (index) => (index < 26 ? String.fromCharCode(65 + index) : String(index + 1));
-
 let panelMs = 5000;
 let questions = [];
 let state = null;
@@ -47,10 +44,10 @@ function labelsFor(questionId) {
   return labels;
 }
 
-function renderBars(node, questionId, rows, { keys = true, counts = true } = {}) {
+function renderBars(node, questionId, rows) {
   const labels = labelsFor(questionId);
   node.replaceChildren();
-  rows.forEach((row, position) => {
+  rows.forEach((row) => {
     const item = document.createElement("li");
     item.className = "bar";
     item.dataset.winner = String(row.winner);
@@ -60,17 +57,11 @@ function renderBars(node, questionId, rows, { keys = true, counts = true } = {})
 
     const label = document.createElement("span");
     label.className = "bar-label";
-    if (keys) {
-      const key = document.createElement("span");
-      key.className = "bar-key";
-      key.textContent = optionKey(position);
-      label.append(key);
-    }
     label.append(document.createTextNode(labels.get(row.id) ?? row.id));
 
     const value = document.createElement("span");
     value.className = "bar-value";
-    value.textContent = counts ? `${row.percent}% · ${row.count}` : `${row.percent}%`;
+    value.textContent = `${row.percent}% · ${row.count}`;
 
     item.append(label, value);
     node.append(item);
@@ -125,7 +116,7 @@ function renderAmbient() {
   el("a-position").textContent = `[${panel}/${questions.length}]`;
   el("a-title").textContent = question.title;
   el("a-count").textContent = String(results.total);
-  renderBars(el("a-bars"), question.id, results.rows, { keys: false });
+  renderBars(el("a-bars"), question.id, results.rows);
   showPanel("question");
 }
 
@@ -140,29 +131,12 @@ function renderReview(index) {
   show("question");
 }
 
-function renderFinale() {
-  const grid = el("finale");
-  grid.replaceChildren();
-  for (const question of questions) {
-    const card = document.createElement("article");
-    card.className = "finale-card";
-    const heading = document.createElement("h2");
-    heading.textContent = question.title;
-    const bars = document.createElement("ul");
-    bars.className = "bars";
-    renderBars(bars, question.id, resultsFor(question).rows, { keys: false, counts: false });
-    card.append(heading, bars);
-    grid.append(card);
-  }
-  show("finished");
-}
-
 function render() {
   if (!state || questions.length === 0) return;
 
   if (state.phase === "finished") {
     stopRotation();
-    renderFinale();
+    show("finished");
     return;
   }
   if (state.phase === "review") {
@@ -229,6 +203,14 @@ async function control(action) {
   }
 }
 
+for (const button of document.querySelectorAll("[data-step]")) {
+  button.addEventListener("click", () => {
+    const delta = Number(button.dataset.step);
+    if (state?.phase === "review") control(delta > 0 ? "next" : "prev");
+    else if (state?.phase === "slideshow") step(delta);
+  });
+}
+
 for (const button of document.querySelectorAll("[data-action]")) {
   button.addEventListener("click", () => {
     const action = button.dataset.action;
@@ -240,7 +222,10 @@ for (const button of document.querySelectorAll("[data-action]")) {
 }
 
 document.addEventListener("keydown", (event) => {
-  if (event.target instanceof HTMLButtonElement) event.target.blur();
+  // Space and Enter activate focused controls normally; other presenter
+  // shortcuts still work after a mouse click leaves a button focused.
+  if (event.target.closest("input, select, textarea")) return;
+  if (event.target.closest("button, a") && [" ", "Enter"].includes(event.key)) return;
   const reviewing = state?.phase === "review";
   switch (event.key) {
     case " ":

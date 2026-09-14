@@ -6,7 +6,7 @@ People scan a QR code, answer on their phone during the break, and the results b
 
 Slido, except vibe-coded.
 
-Built for [Agentic AI Night #1](https://luma.com/4ciica7u), the AAIF Luxembourg launch. The deck it ran that night ships as the default `poll.yaml` — replace that one file and it is your poll.
+Built for [Agentic AI Night #1](https://luma.com/4ciica7u), the AAIF Luxembourg launch. The default `poll.yaml` contains six questions about agent experience, attendee roles, use cases, reliability, barriers, and the next session — replace that one file and it is your poll.
 
 ## How it works
 
@@ -20,19 +20,19 @@ Three surfaces, one shared state:
 
 The session runs in three phases.
 
-**`slideshow` — during the break.** Every question is open at once and the room answers at its own pace: scan, answer question 1, the phone advances to question 2, and so on to the end.
+**`slideshow` — during the break.** Every question is open at once and the room answers at its own pace: scan, answer question 1, the phone advances to question 2 after the save is confirmed, and so on to the end. A failed request stays on the question with a retry message. Native radio controls support keyboard navigation, and a numbered progress label tracks the remaining questions.
 
 The stage screen splits: the QR holds the right third for the entire break, and only the left two thirds animate, cycling the welcome panel and then each question with its live results. The code never rotates away, so nobody loses it mid-scan and a latecomer can always join. `panel_seconds` in the poll file sets the dwell time.
 
 **`review` — when you go back on stage.** Voting closes, the rotation stops, and the question takes the full width with the QR gone, under your control so you can comment on each result. Every phone switches to "Look up" and shows nothing else, which is the point: attention belongs on the screen, not in 60 hands.
 
-**`finished`.** Every question and every answer on one board.
+**`finished`.** A thank-you screen closes the session. Results remain available by returning to Review.
 
 The rotation is timed **in the browser**, not on the server. A server-driven one would have to push a frame to every phone in the room every few seconds just to move a panel nobody on a phone can see, and two screens would still drift apart after a reconnect. The timer is armed once per panel rather than restarted on every render, or a room voting faster than `panel_seconds` would freeze the carousel on one slide for the whole break.
 
 ### Presenter controls
 
-Hover the bottom of the stage screen for buttons, or use the keyboard:
+Use the buttons at the bottom of the stage screen, or use the keyboard:
 
 | Key       | During the break                                          | While reviewing            |
 | --------- | --------------------------------------------------------- | -------------------------- |
@@ -40,7 +40,7 @@ Hover the bottom of the stage screen for buttons, or use the keyboard:
 | `←` / `→` | Step slides by hand (pauses)                              | Previous / next question   |
 | `s`       | Back to the break carousel                                | Back to the break carousel |
 | `r`       | Take the stage (closes voting)                            | —                          |
-| `f`       | Final board                                               | Final board                |
+| `f`       | Thank-you screen                                          | Thank-you screen           |
 | Wipe      | Deletes every vote. Asks first. Button only, no shortcut. |                            |
 
 A strip along the bottom of the stage screen carries the repository URL and, when the stream drops, a `reconnecting…` marker — so a frozen screen never looks like a live one.
@@ -54,17 +54,21 @@ id: my-meetup-1 # Firestore document key. Change it to start a fresh poll.
 title: "Agentic AI Night #1"
 subtitle: "AAIF Luxembourg Launch" # optional, shown above the title
 repo: https://github.com/fmind/vibepoll # optional, shown on the stage screen
-panel_seconds: 5 # optional, dwell per panel during the break (default 5)
+panel_seconds: 8 # optional, dwell per panel during the break (default 5)
 
 questions:
-  - id: merger # stable key: reword the title freely, never the id
-    title: "Are you happy about the merger?"
-    subtitle: "Be honest, nobody can trace this back to you." # optional
+  - id: familiarity # stable key: reword the title freely, never the id
+    title: "Which best describes your experience with AI agents?"
+    subtitle: "Pick the closest match." # optional
     options:
-      - id: "yes"
-        label: "Yes"
-      - id: "no"
-        label: "No, and I will be writing a blog post about it"
+      - id: unused
+        label: "Never used agents"
+      - id: tried
+        label: "Tried agents occasionally"
+      - id: user
+        label: "Use agents regularly without building them"
+      - id: builder
+        label: "Build agents"
 ```
 
 | Field                 | Required | Notes                                                            |
@@ -81,7 +85,7 @@ The file is read and validated once at startup, so a typo stops the process with
 
 Two YAML traps the schema will catch but that are easier to avoid: a bare `yes`, `no`, `on` or `off` parses as a **boolean**, so quote an option id spelled like one; and an unquoted `Night #1` loses everything from the `#` onward. The shipped `poll.yaml` quotes all prose for exactly this reason.
 
-**Option ids are the storage key.** Rewording a label leaves existing ballots intact; renaming an id abandons them. Shortening the deck between sessions is safe: ballots for questions that no longer exist are dropped at startup rather than resurrected.
+**Option ids are the storage key.** Rewording a label leaves existing ballots intact. If the answer meanings change, use a new poll `id` so earlier responses remain separate; the shipped six-question deck uses `aaif-luxembourg-1-v2`. Shortening the deck between sessions is safe: ballots for questions that no longer exist are dropped at startup rather than resurrected.
 
 ## Run it locally
 
@@ -109,11 +113,11 @@ Without `GOOGLE_CLOUD_PROJECT`, votes are kept in memory and lost on restart. Th
 
 ## Architecture
 
-One Cloud Run instance serves the whole room and owns the live tally in memory, so a vote reaches the projector without a round trip to Firestore. Firestore is the durable record: written after the in-memory update, read back only at startup, so a restart resumes where it stopped.
+One Cloud Run instance serves the whole room. Each vote is saved to Firestore before it enters the in-memory tally or is broadcast. Writes and presenter controls are serialized to prevent a delayed save from undoing a changed answer or surviving a wipe. Reads stay available during saves; storage latency limits write throughput. A restart rebuilds the tally from confirmed ballots.
 
 This is why the service is pinned to `--max-instances=1`. A second instance would serve a second, disagreeing poll. Room capacity is raised with `--concurrency` — every phone holds one SSE connection open for the whole session — never by lifting the instance cap.
 
-Ballots are keyed `{question_id}__{voter_id}`, where the voter id is a random value minted by the browser and kept in `localStorage`. Changing your answer moves your vote instead of adding one, and no account, address, or user agent is ever stored. Because the server remembers which questions a voter has answered, a phone that reloads mid-deck resumes at its first unanswered question.
+Ballots are keyed `{question_id}__{voter_id}`, where the voter id is a random value minted by the browser and kept in `localStorage`. Changing your answer moves your vote instead of adding one, and the application stores the answer, random browser ID, and timestamp, without collecting an account, address, or user agent. Results keep the configured answer order, including frequency scales, and use labels without answer letters. Because the server remembers which questions a voter has answered, a phone that reloads mid-deck resumes at its first unanswered question.
 
 Results are public — the room watches them build on the stage screen through the whole break — so nothing is withheld from a phone. The presenter key guards the run of show (`/api/control`), not the numbers.
 
@@ -127,7 +131,7 @@ Streamed frames carry only ids and counts. Question prose is fetched once from `
 - `src/vibepoll/firestore.py` — durable storage.
 - `src/vibepoll/app.py` — composition root: routes, presenter check, security headers.
 - `src/vibepoll/settings.py` — every environment variable is parsed here and nowhere else.
-- `src/vibepoll/templates/`, `src/vibepoll/static/` — three pages, one stylesheet, no build step and no framework.
+- `src/vibepoll/templates/`, `src/vibepoll/static/` — two pages, one stylesheet, no build step and no framework.
 
 ## Deploy
 
@@ -185,13 +189,13 @@ Do that only once the domain actually serves TLS. Cloud Run reports `Certificate
 
 1. Deploy (`--min-instances=1` if you want to skip the cold start), open the presenter URL on the laptop, mirror to the projector.
 2. At the start of the break, leave it on the break screen. The QR stays put on the right while the left side cycles the welcome and every question with live results, unattended, for as long as the break lasts.
-3. People scan, answer at their own pace, and get a "thank you" screen.
+3. People scan, answer at their own pace, and get a "thank you" screen once all answers are confirmed. They can revisit answers and use Done to return.
 4. When you go back on stage, press `r`. Voting closes and every phone says "Look up".
-5. `→` through the questions to comment on each, then `f` for the final board.
+5. `→` through the questions to comment on each, then `f` for the thank-you screen.
 
-If the venue Wi-Fi drops, phones reconnect on their own and show the current state — `EventSource` retries without help, votes already recorded are in Firestore, and a page that loads mid-outage keeps retrying instead of sitting blank. If the instance restarts, it reloads state and every ballot from Firestore, so the run of show survives it.
+If the venue Wi-Fi drops, phones reconnect on their own and show the current state — `EventSource` retries without help, confirmed votes are in Firestore, and a page that loads mid-outage keeps retrying instead of sitting blank. If the instance restarts, it reloads state and every ballot from Firestore, so the run of show survives it.
 
-Wipe every vote between a rehearsal and the real session, or the rehearsal's answers are in the finale.
+Wipe every vote between a rehearsal and the real session, or the rehearsal's answers will be included in the results.
 
 ## Gotchas
 
@@ -203,9 +207,11 @@ There is no rate limit on `/api/vote`. Voter ids are minted client-side, so anyo
 
 ```sh
 mise run all         # format, lint, types, workflows, secret scan, dependency scan, tests
-mise run test        # tests with the 85% branch-coverage gate
+mise run test        # Python and Chromium regressions; 85% branch-coverage gate
 mise run check:image # build and scan the production OCI image (needs Docker)
 ```
+
+The install task downloads Chromium for browser tests. On a fresh Linux machine, install Playwright's required system libraries through your system administrator; CI installs them on its disposable runner.
 
 ## Licence
 

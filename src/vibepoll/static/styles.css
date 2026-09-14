@@ -1,21 +1,22 @@
-/* vibepoll — one stylesheet for a phone in a dark room and a projector at the
-   back of a lecture hall. Both surfaces are dark on purpose: a white screen at
-   18:30 in an auditorium is a hostile act. */
+/* Fmind light palette: github.com/fmind/theme. Dark shades carry text;
+   light shades distinguish panels, selections, and chart fills. */
 
 :root {
-  --bg: #08090d;
-  --surface: #12141c;
-  --surface-2: #1a1d28;
-  --line: #262b3a;
-  --text: #f2f4f8;
-  --muted: #8d93a6;
-  --accent: #c2ff3d;
-  --accent-soft: rgba(194, 255, 61, 0.14);
-  --cyan: #6ee7ff;
-  --danger: #ff5c6c;
+  --bg: #FFFFFF;
+  --surface: #F1F3F4;
+  --surface-2: #D2E3FC;
+  --line: #9AA0A6;
+  --text: #202124;
+  --muted: #595D62;
+  --accent: #174EA6;
+  --accent-soft: #D2E3FC;
+  --current: #681DA8;
+  --success: #0D652D;
+  --success-soft: #CEEAD6;
+  --danger: #A50E0E;
   --radius: 14px;
-  --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
-  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --font: "Google Sans", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color-scheme: light;
 }
 
 *,
@@ -33,17 +34,6 @@ body {
   overflow-x: hidden;
 }
 
-/* A single radial wash keeps the dark background from reading as "broken
-   projector" without costing a background image request. */
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  background: radial-gradient(120% 90% at 50% -10%, rgba(194, 255, 61, 0.10), transparent 60%);
-  pointer-events: none;
-  z-index: 0;
-}
-
 [hidden] { display: none !important; }
 
 h1, h2, h3 { margin: 0; font-weight: 800; letter-spacing: -0.02em; line-height: 1.08; }
@@ -53,9 +43,7 @@ p { margin: 0; }
 .tiny { font-size: 0.78rem; }
 
 .eyebrow {
-  font-family: var(--mono);
-  text-transform: uppercase;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.04em;
   font-size: 0.72rem;
   font-weight: 700;
   color: var(--accent);
@@ -116,50 +104,23 @@ p { margin: 0; }
   transition: transform 0.12s ease, border-color 0.15s ease, background 0.15s ease;
 }
 
-.option:hover { border-color: #39405a; }
+.option:hover { border-color: var(--accent); background: var(--accent-soft); }
 .option:active { transform: scale(0.985); }
 
-.option .key {
+.option input {
   flex: none;
-  width: 1.8rem;
-  height: 1.8rem;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  border: 1.5px solid var(--line);
-  font-family: var(--mono);
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: var(--muted);
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0;
+  accent-color: var(--accent);
 }
+.option:has(input:checked) { background: var(--accent-soft); border-color: var(--accent); }
+.option:has(input:disabled) { cursor: wait; }
+.option:focus-within { outline: 3px solid var(--accent); outline-offset: 3px; }
+#vote-status:empty { display: none; }
+.connection-status { color: var(--danger); font-size: 0.85rem; }
 
-.option[aria-checked="true"] {
-  background: var(--accent-soft);
-  border-color: var(--accent);
-}
-
-.option[aria-checked="true"] .key {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #0b1000;
-}
-
-.option:focus-visible,
-.console button:focus-visible { outline: 3px solid var(--cyan); outline-offset: 2px; }
-
-/* A dot per question: answered, current, still to come. Cheaper to read at a
-   glance on a phone than "Question 3 of 5", and it shows the shape of the deck
-   so nobody wonders how much longer this goes on. */
-.pips { display: flex; gap: 0.35rem; padding-top: 0.15rem; }
-.pip {
-  width: 1.6rem;
-  height: 0.3rem;
-  border-radius: 999px;
-  background: var(--line);
-  transition: background 0.25s ease;
-}
-.pip[data-answered="true"] { background: var(--accent); }
-.pip[data-current="true"] { background: var(--cyan); }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 
 .stage-nav { display: flex; justify-content: space-between; gap: 0.5rem; }
 .stage-nav:has(> :only-child) { justify-content: center; }
@@ -181,7 +142,7 @@ p { margin: 0; }
 .tick {
   font-size: 2.4rem;
   line-height: 1;
-  color: var(--accent);
+  color: var(--success);
   font-weight: 800;
 }
 .look-up { font-size: 2.6rem; line-height: 1; animation: nudge 1.8s ease-in-out infinite; }
@@ -192,7 +153,6 @@ p { margin: 0; }
 }
 
 .phone-foot { margin-top: auto; text-align: center; display: grid; gap: 0.4rem; }
-.repo-line { font-family: var(--mono); }
 .repo-line a { color: var(--muted); text-decoration: none; border-bottom: 1px solid var(--line); }
 .repo-line a:hover { color: var(--accent); }
 
@@ -226,13 +186,12 @@ p { margin: 0; }
   transition: width 0.75s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.bar[data-winner="true"] { border-color: var(--accent); }
-.bar[data-winner="true"]::before { background: var(--accent-soft); }
-.bar[data-winner="true"] .bar-value { color: var(--accent); }
+.bar[data-winner="true"] { border-color: var(--success); }
+.bar[data-winner="true"]::before { background: var(--success-soft); }
+.bar[data-winner="true"] .bar-value { color: var(--success); }
 
 .bar-label { font-size: 0.95rem; line-height: 1.3; }
 .bar-value {
-  font-family: var(--mono);
   font-variant-numeric: tabular-nums;
   font-weight: 700;
   white-space: nowrap;
@@ -240,42 +199,12 @@ p { margin: 0; }
 
 @media (prefers-reduced-motion: reduce) {
   .bar::before { transition: none; }
-  .look-up,
-  .cursor { animation: none; }
+  .look-up { animation: none; }
   #screen-question:not([hidden]),
   #screen-finished:not([hidden]) { animation: none; }
 }
 
 /* ------------------------------------------------------------- projector --- */
-
-/* A barely-there scanline grid. Enough to read as a terminal from the back of
-   the room, light enough not to shimmer against a projector's own pixel grid.
-   Phones are left alone: at that size it only costs contrast on small text. */
-.stage-screen::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  background: repeating-linear-gradient(to bottom, rgba(194, 255, 61, 0.035) 0 1px, transparent 1px 3px);
-  pointer-events: none;
-  z-index: 2;
-}
-
-/* A block cursor parked after a heading, because this is a poll about agents
-   written by people who live in terminals. */
-.cursor {
-  display: inline-block;
-  width: 0.55em;
-  height: 0.92em;
-  margin-left: 0.12em;
-  background: var(--accent);
-  vertical-align: -0.06em;
-  animation: blink 1.1s steps(1, end) infinite;
-}
-
-@keyframes blink {
-  0%, 49% { opacity: 1; }
-  50%, 100% { opacity: 0; }
-}
 
 /* Fixed strip under everything: where the source lives, and whether this screen
    is still connected. Both belong in the presenter's periphery, not on a panel
@@ -289,16 +218,15 @@ p { margin: 0; }
   justify-content: space-between;
   gap: 1rem;
   padding: 0.45rem clamp(0.8rem, 2vw, 1.6rem);
-  font-family: var(--mono);
   /* Peripheral, but a projector at the back of a hall still has to resolve it:
      this is the line that tells the room where the source lives. */
   font-size: clamp(0.75rem, 1.05vw, 1.05rem);
-  color: #6f758a;
+  color: var(--muted);
   border-top: 1px solid var(--line);
-  background: rgba(8, 9, 13, 0.72);
+  background: var(--bg);
 }
 
-.status-bar .prompt { color: var(--accent); font-weight: 700; }
+.status-bar .repo a { color: var(--accent); text-underline-offset: 3px; }
 .status-bar .link-state { color: var(--danger); }
 
 .stage-screen {
@@ -307,7 +235,7 @@ p { margin: 0; }
   min-height: 100vh;
   min-height: 100dvh;
   display: grid;
-  padding: 3vh 4vw 9vh;
+  padding: 3vh 4vw max(16vh, 7.5rem);
 }
 
 .screen { align-self: center; width: 100%; display: grid; gap: 2.2vh; }
@@ -351,9 +279,9 @@ p { margin: 0; }
 /* Nothing to fill the height with, so this one sits in the middle. */
 #panel-welcome { align-content: center; }
 
-/* The question panel is the tall one: title, six bars, a count. The bars take
+/* The question panel is the tall one: title, answer bars, a count. The bars take
    the leftover height and share it equally, which both fills the column and
-   guarantees six of them always fit. */
+   allows the answer rows to share the available space. */
 #panel-question {
   grid-template-rows: auto auto minmax(0, 1fr) auto;
   align-content: stretch;
@@ -373,8 +301,8 @@ p { margin: 0; }
 }
 
 .ambient-bars .bar { min-height: 0; padding: 0 clamp(0.7rem, 1.1vw, 1.2rem); }
-.ambient-bars .bar-label { font-size: clamp(0.7rem, min(1.05vw, 1.85vh), 1.15rem); line-height: 1.2; }
-.ambient-bars .bar-value { font-size: clamp(0.7rem, min(1.05vw, 1.85vh), 1.15rem); }
+.ambient-bars .bar-label { font-size: clamp(1rem, min(1.7vw, 3vh), 1.9rem); line-height: 1.2; }
+.ambient-bars .bar-value { font-size: clamp(1rem, min(1.7vw, 3vh), 1.9rem); }
 
 .ambient-right {
   display: grid;
@@ -385,7 +313,6 @@ p { margin: 0; }
 }
 
 .join-url {
-  font-family: var(--mono);
   font-size: clamp(1rem, 1.9vw, 2rem);
   font-weight: 800;
   color: var(--accent);
@@ -394,7 +321,8 @@ p { margin: 0; }
 }
 
 .qr-frame {
-  background: #fff;
+  background: var(--bg);
+  border: 1px solid var(--line);
   border-radius: 20px;
   padding: clamp(0.7rem, 1.4vw, 1.5rem);
   display: grid;
@@ -403,9 +331,9 @@ p { margin: 0; }
   width: min(100%, 62vh);
 }
 
-.qr { width: 100%; height: 100%; color: #000; display: block; }
+.qr { width: 100%; height: 100%; color: var(--text); display: block; }
 
-.counter { font-family: var(--mono); font-size: clamp(1rem, 1.5vw, 1.5rem); color: var(--muted); }
+.counter { font-size: clamp(1rem, 1.5vw, 1.5rem); color: var(--muted); }
 .counter strong {
   font-size: clamp(1.8rem, 3.4vw, 3.4rem);
   color: var(--text);
@@ -431,9 +359,9 @@ p { margin: 0; }
 }
 
 /* Sized against the viewport height, because height is the binding constraint
-   here: six bars, a title and a footer have to share one screen. */
+   here: answer bars, a title and a footer have to share one screen. */
 .question-slide .bars.big .bar { padding: 0 clamp(0.7rem, 1.2vw, 1.3rem); }
-.question-slide .bars.big .bar-label { font-size: clamp(0.85rem, min(1.3vw, 2.2vh), 1.5rem); }
+.question-slide .bars.big .bar-label { font-size: clamp(1rem, min(2vw, 3.2vh), 2rem); }
 .question-slide .bars.big .bar-value { font-size: clamp(0.9rem, min(1.6vw, 2.4vh), 1.9rem); }
 .question-slide .hero { font-size: clamp(1.3rem, min(2.8vw, 4.4vh), 2.8rem); }
 
@@ -445,7 +373,7 @@ p { margin: 0; }
   gap: 2rem;
 }
 
-/* Only the review and finale screens fade in wholesale. The break panels get
+/* Only the review and thank-you screens fade in wholesale. The break panels get
    their entrance from script, replayed on every rotation. */
 #screen-question:not([hidden]),
 #screen-finished:not([hidden]) { animation: slide-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
@@ -455,63 +383,12 @@ p { margin: 0; }
   to { opacity: 1; transform: none; }
 }
 
-.bar-key {
-  font-family: var(--mono);
-  display: inline-grid;
-  place-items: center;
-  width: 1.5em;
-  height: 1.5em;
-  margin-right: 0.6em;
-  border-radius: 50%;
-  background: var(--surface-2);
-  color: var(--accent);
-  font-size: 0.7em;
-  font-weight: 800;
-  vertical-align: 0.1em;
-}
-
 .bars.big { gap: 0.7rem; }
 .bars.big .bar { padding: 1.1rem 1.3rem; border-radius: 12px; }
 .bars.big .bar-label { font-size: clamp(1rem, 1.35vw, 1.6rem); }
 .bars.big .bar-value { font-size: clamp(1.1rem, 1.7vw, 2rem); }
 
-/* Finale: every question and every option on one screen, so the room can argue
-   about all of them at once and nobody has to scroll a projector. The card
-   metrics below are deliberately tight — five cards of six bars must fit
-   1280x720 without clipping, which is the smallest projector worth planning
-   for. Scrolling here would hide the last answers at the moment they land. */
-.finale { align-content: start; gap: 1.4vh; padding-bottom: 4vh; }
-.finale .hero { font-size: clamp(1.6rem, 3vw, 2.6rem); }
-.finale-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(22rem, 100%), 1fr));
-  gap: clamp(0.5rem, 1vw, 0.9rem);
-}
-
-.finale-card {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: clamp(0.6rem, 1vw, 0.9rem);
-  display: grid;
-  gap: 0.5rem;
-  align-content: start;
-}
-
-.finale-card h2 { font-size: clamp(0.8rem, 0.95vw, 1rem); line-height: 1.25; }
-.finale-card .bars { gap: 0.25rem; }
-.finale-card .bar {
-  background: var(--surface-2);
-  border-color: transparent;
-  padding: 0.3rem 0.55rem;
-  border-radius: 7px;
-  gap: 0.5rem;
-}
-.finale-card .bar::before { background: #232838; }
-.finale-card .bar[data-winner="true"]::before { background: var(--accent-soft); }
-.finale-card .bar[data-winner="true"] { border-color: var(--accent); }
-.finale-card .bar-label { font-size: clamp(0.68rem, 0.78vw, 0.82rem); line-height: 1.25; }
-.finale-card .bar-value { font-size: clamp(0.68rem, 0.78vw, 0.82rem); }
+.farewell { text-align: center; }
 
 /* --------------------------------------------------------------- console --- */
 
@@ -527,17 +404,9 @@ p { margin: 0; }
   justify-items: center;
   padding: 0.5rem 0.6rem;
   border-radius: 999px;
-  background: rgba(18, 20, 28, 0.82);
+  background: var(--bg);
   border: 1px solid var(--line);
-  backdrop-filter: blur(8px);
-  opacity: 0.28;
-  transition: opacity 0.2s ease;
 }
-
-/* Invisible until the presenter reaches for it: the projector shows the poll,
-   not the controls. */
-.console:hover,
-.console:focus-within { opacity: 1; }
 
 .console-row { display: flex; gap: 0.3rem; flex-wrap: wrap; justify-content: center; }
 
@@ -553,8 +422,8 @@ p { margin: 0; }
   cursor: pointer;
 }
 
-.console button:hover { background: #242a3a; }
-.console button.primary { background: var(--accent); border-color: var(--accent); color: #0b1000; }
+.console button:hover { background: var(--accent-soft); border-color: var(--accent); }
+.console button.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); }
 .console button.danger { color: var(--danger); }
 .console-hint { font-size: 0.65rem; color: var(--muted); letter-spacing: 0.08em; }
 

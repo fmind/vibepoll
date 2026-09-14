@@ -42,8 +42,8 @@ class Question(BaseModel):
     id: Annotated[str, Field(pattern=_ID)]
     title: Annotated[str, Field(min_length=1, max_length=240)]
     subtitle: Annotated[str, Field(max_length=240)] = ""
-    # Two is the fewest that makes a poll; ten is the most that still fits six
-    # bars' worth of projector height without becoming unreadable at the back.
+    # Two is the fewest that makes a poll; ten bounds the choice list.
+    # Check the actual question lengths at the venue's projector resolution.
     options: Annotated[tuple[Option, ...], Field(min_length=2, max_length=10)]
 
     def option_ids(self) -> frozenset[str]:

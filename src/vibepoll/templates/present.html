@@ -11,7 +11,7 @@
     <div class="ambient-left">
       <div class="panel" id="panel-welcome" hidden>
         <p class="eyebrow">{{ config.subtitle }}</p>
-        <h1 class="hero">{{ config.title }}<span class="cursor" aria-hidden="true"></span></h1>
+        <h1 class="hero">{{ config.title }}</h1>
         <p class="lede">Scan. Answer {{ config.questions | length }} questions.<br />Anonymously, no sign-up.</p>
         <p class="counter"><strong id="a-people">0</strong> <span>people in</span></p>
       </div>
@@ -45,20 +45,20 @@
     </footer>
   </section>
 
-  <section class="screen finale" id="screen-finished" hidden>
-    <h1 class="hero">The verdict<span class="cursor" aria-hidden="true"></span></h1>
-    <div class="finale-grid" id="finale"></div>
+  <section class="screen farewell" id="screen-finished" hidden>
+    <p class="eyebrow">{{ config.title }}</p>
+    <h1 class="hero">Thank you.</h1>
+    <p class="lede">Your answers will help shape our next sessions.</p>
   </section>
 
-  <!-- Presenter console: deliberately small and low-contrast so it disappears
-       on the projected image while staying usable on the laptop. -->
+  <!-- Compact presenter controls stay readable on the light background. -->
   <aside class="console" id="console">
     <div class="console-row">
       <button type="button" data-action="slideshow" title="Break carousel (s)">Slideshow</button>
-      <button type="button" data-action="prev" title="Previous question (←)">←</button>
+      <button type="button" data-step="-1" title="Previous question (←)">←</button>
       <button type="button" data-action="review" class="primary" title="Take the stage (r)">Review</button>
-      <button type="button" data-action="next" title="Next question (→)">→</button>
-      <button type="button" data-action="finish" title="Final board (f)">Finale</button>
+      <button type="button" data-step="1" title="Next question (→)">→</button>
+      <button type="button" data-action="finish" title="Thank-you screen (f)">Finish</button>
       <button type="button" data-action="clear" class="danger" title="Delete every vote">Wipe</button>
     </div>
     <p class="console-hint" id="console-hint">space · ← → · s · r · f</p>
@@ -69,7 +69,7 @@
        rather than on a panel that rotates away. -->
   <footer class="status-bar">
     {% if config.repo %}
-    <p class="repo"><span class="prompt" aria-hidden="true">$</span> git clone {{ config.repo }}</p>
+    <p class="repo">Source: <a href="{{ config.repo }}" rel="noopener noreferrer" target="_blank">{{ config.repo | replace("https://", "") }}</a></p>
     {% else %}
     <p class="repo"></p>
     {% endif %}

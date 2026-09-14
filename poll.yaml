@@ -1,3 +1,4 @@
+# Docs: https://yaml.org/spec/1.2.2/
 # Poll definition for vibepoll.
 #
 # This is the deck vibepoll was built for: Agentic AI Night #1, the AAIF
@@ -10,94 +11,118 @@
 # parse as booleans — so an option id spelled like one has to be quoted too.
 # Quoting everything makes this file safe to edit without knowing any of that.
 
-id: aaif-luxembourg-1 # Firestore document key. Change it to start a fresh poll.
+# Revised answer meanings get a fresh key; earlier responses remain intact.
+id: aaif-luxembourg-1-v2
 title: "Agentic AI Night #1"
 subtitle: "AAIF Luxembourg Launch"
-repo: https://github.com/fmind/vibepoll # shown on the stage screen; omit to hide it
-panel_seconds: 5 # dwell per panel while the break carousel is running
+repo: https://github.com/fmind/vibepoll
+panel_seconds: 8
 
 questions:
-  - id: merger
-    title: "Are you happy about the merger between AAIF and the MLOps Community?"
-    subtitle: "Be honest, nobody can trace this back to you."
+  - id: familiarity
+    title: "Which best describes your experience with AI agents?"
+    subtitle: "Agents use tools to carry out tasks. Choose the closest match; if you build agents, choose that."
     options:
-      - id: "yes"
-        label: "Yes"
-      - id: boring
-        label: "Yes, MLOps was too technical and boring anyway"
-      - id: overlord
-        label: "Yes, I want our future AI overlord to recognise my worth and contribution"
-      - id: pizza
-        label: "I don't care, I'm only here for the free food and pizza"
-      - id: hardcore
-        label: "No, MLOps Community was hardcore and I liked it"
-      - id: torch
-        label: "No, who carries the torch for MLOps now?"
+      - id: unused
+        label: "Never used agents"
+      - id: tried
+        label: "Tried agents occasionally"
+      - id: user
+        label: "Use agents regularly without building them"
+      - id: builder
+        label: "Build agents"
 
-  - id: project
-    title: "Which AAIF project should we cover in a future session?"
-    subtitle: "We will actually run the winner. Choose responsibly."
+  - id: role
+    title: "What is your primary role?"
+    subtitle: "Choose the closest match to your work or studies."
     options:
-      - id: mcp
-        label: "MCP — everyone says they use it, nobody read the spec"
-      - id: a2a
-        label: "A2A — agents talking to agents about agents"
-      - id: goose
-        label: "goose — the agent, not the bird"
-      - id: agentsmd
-        label: "AGENTS.md — a Markdown file got a Linux Foundation seat, discuss"
-      - id: gateway
-        label: "agentgateway — the plumbing nobody applauds until it leaks"
-      - id: gtavi
-        label: "The AAIF colour scheme (and whether GTA VI ships first)"
+      - id: engineering
+        label: "Software, AI, or data engineering"
+      - id: platform
+        label: "Platform, infrastructure, or IT"
+      - id: security
+        label: "Security, risk, or compliance"
+      - id: business
+        label: "Product or business operations"
+      - id: leadership
+        label: "Leadership or management"
+      - id: education
+        label: "Research, education, or student"
+      - id: other
+        label: "Other role"
+      - id: private
+        label: "Prefer not to say"
 
   - id: usecase
-    title: "Which agent use case actually boosts your productivity?"
-    subtitle: "Actually. Not the one you put in the slide deck."
+    title: "What have you mainly used AI agents for in the past 30 days?"
+    subtitle: "Choose one activity."
     options:
       - id: coding
-        label: "Coding (shocking, I know)"
-      - id: workspace
-        label: "Workspace chores: email, slides, calendar Tetris"
-      - id: business
-        label: "Business: legal, finance, procurement PDFs"
+        label: "Software development and testing"
       - id: research
-        label: "Research, and the 47 tabs I will never read"
-      - id: love
-        label: "Writing love messages (and apology messages)"
-      - id: pokemon
-        label: "Selling Pokémon cards on eBay"
+        label: "Research and information analysis"
+      - id: workspace
+        label: "Email, documents, and personal productivity"
+      - id: business
+        label: "Finance, legal, or procurement"
+      - id: support
+        label: "Customer support and service"
+      - id: other
+        label: "Another activity"
+      - id: unused
+        label: "No agent use in the past 30 days"
 
-  - id: failure
-    title: "What is your agent's most impressive failure so far?"
-    subtitle: "Warm-up for the keynote: how reliable are your AI agents, really?"
+  - id: reliability
+    title: "How often do you need to substantially correct an agent's work?"
+    subtitle: "Think about the past 30 days. Substantial correction means more than minor edits."
     options:
-      - id: hallucinated
-        label: "Confidently invented an API that has never existed"
-      - id: deleted
-        label: "Deleted something it was explicitly told not to touch"
-      - id: looped
-        label: "Looped forever, burning tokens like a patio heater"
-      - id: selftest
-        label: "Passed every single test it wrote for itself"
-      - id: liedone
-        label: "Told me the task was complete. It was not."
-      - id: perfect
-        label: "Nothing. My agent is perfect. (I do not use agents.)"
+      - id: always
+        label: "Almost always"
+      - id: often
+        label: "Often"
+      - id: sometimes
+        label: "Sometimes"
+      - id: rarely
+        label: "Rarely"
+      - id: never
+        label: "Never"
+      - id: unsure
+        label: "Not enough recent experience"
 
-  - id: commit
-    title: "Honestly: how much of your last production commit did you write?"
-    subtitle: "This room is full of witnesses. Choose carefully."
+  - id: blocker
+    title: "What is your main barrier to wider use of AI agents?"
+    subtitle: "Choose the one that most limits you today."
     options:
-      - id: all
-        label: "All of it. I type like it's 2019."
-      - id: most
-        label: "Most of it, the agent did the boring parts"
-      - id: half
-        label: "Half, and I reviewed every line. Really."
-      - id: agent
-        label: "Mostly the agent, I did the code review"
-      - id: unread
-        label: "I approved a diff I did not fully read"
-      - id: blame
-        label: "git blame says the agent, my manager says me"
+      - id: reliability
+        label: "Unreliable results"
+      - id: security
+        label: "Security or privacy concerns"
+      - id: integration
+        label: "Integration difficulties"
+      - id: value
+        label: "Unclear value"
+      - id: skills
+        label: "Lack of time or skills"
+      - id: other
+        label: "Other"
+      - id: none
+        label: "No major barrier"
+      - id: unsure
+        label: "Not sure"
+
+  - id: topic
+    title: "What should we cover next?"
+    subtitle: "Choose the session you would most like to attend."
+    options:
+      - id: building
+        label: "Building agents"
+      - id: evaluation
+        label: "Testing and evaluation"
+      - id: security
+        label: "Security"
+      - id: memory
+        label: "Memory and retrieval"
+      - id: operations
+        label: "Deployment and operations"
+      - id: unsure
+        label: "Not sure"

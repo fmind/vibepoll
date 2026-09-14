@@ -1,8 +1,8 @@
 """Shared fixtures: every test runs against an in-memory repository, offline.
 
-Tests use a small synthetic deck rather than the shipped ``poll.yaml`` so that
-rewording a question never breaks an assertion about behaviour. One test in
-``test_config.py`` validates the real file.
+Backend tests use a small synthetic deck so rewording questions does not break
+behaviour checks. The config test validates the shipped YAML, and browser tests
+exercise the real six-question deck, including its projector layout.
 """
 
 from __future__ import annotations

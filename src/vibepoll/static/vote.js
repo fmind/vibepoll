@@ -1,10 +1,4 @@
-// Phone voting client. The room answers at its own pace: this walks the deck
-// one question at a time, advancing as each answer lands, and resumes where it
-// left off after a reload because the server remembers what this voter answered.
-
-const STORAGE_KEY = "vibepoll.voter";
-const ADVANCE_MS = 260;
-
+// One question at a time. Only confirmed answers count toward completion.
 const el = (id) => document.getElementById(id);
 const stages = {
   voting: el("stage-voting"),
@@ -13,25 +7,16 @@ const stages = {
   offline: el("stage-offline"),
 };
 
-/** A, B, C … then plain numbers past Z, for decks with many options. */
-const optionKey = (index) => (index < 26 ? String.fromCharCode(65 + index) : String(index + 1));
-
-// A random, opaque identifier minted in the browser. It is the only thing that
-// ties a ballot to a device, it never leaves this origin, and it maps to no
-// account, name, or address anywhere.
 function voterId() {
-  let id = null;
+  let id;
   try {
-    id = localStorage.getItem(STORAGE_KEY);
-  } catch {
-    // Private mode or blocked storage: fall through to a per-session id. The
-    // voter simply starts over if they reload.
-  }
+    id = localStorage.getItem("vibepoll.voter");
+  } catch { /* Blocked storage uses an id for this page session. */ }
   if (!id) {
     id = crypto.randomUUID().replaceAll("-", "");
     try {
-      localStorage.setItem(STORAGE_KEY, id);
-    } catch { /* not fatal */ }
+      localStorage.setItem("vibepoll.voter", id);
+    } catch { /* Reloading with blocked storage starts a new session. */ }
   }
   return id;
 }
@@ -39,147 +24,121 @@ function voterId() {
 const VOTER = voterId();
 let questions = [];
 let state = null;
-let cursor = null;      // index of the question on screen, or null to auto-pick
-let pending = {};       // optimistic answers awaiting their broadcast echo
+let cursor = null;
+let saving = null;
+let shownQuestion = null;
+let shownStage = null;
 
 function show(name) {
-  for (const [key, node] of Object.entries(stages)) {
-    if (node) node.hidden = key !== name;
+  for (const [key, node] of Object.entries(stages)) node.hidden = key !== name;
+  el("progress").hidden = name !== "voting";
+  if (shownStage !== name && name !== "voting") {
+    stages[name].querySelector("h2").focus();
   }
+  shownStage = name;
 }
 
-function answers() {
-  return { ...(state?.answers ?? {}), ...pending };
-}
-
-/** First unanswered question, or null when the deck is complete. */
 function firstUnanswered() {
-  const given = answers();
-  const index = questions.findIndex((question) => !(question.id in given));
+  const index = questions.findIndex((question) => !state.answers[question.id]);
   return index === -1 ? null : index;
-}
-
-function renderPips() {
-  const pips = el("pips");
-  const given = answers();
-  pips.hidden = questions.length === 0;
-  pips.replaceChildren();
-  questions.forEach((question, index) => {
-    const pip = document.createElement("span");
-    pip.className = "pip";
-    if (question.id in given) pip.dataset.answered = "true";
-    if (index === cursor) pip.dataset.current = "true";
-    pips.append(pip);
-  });
 }
 
 function renderQuestion(index) {
   const question = questions[index];
-  if (!question) return;
-  const chosen = answers()[question.id];
+  const changed = shownQuestion !== question.id || shownStage !== "voting";
+  if (changed) {
+    el("question-title").textContent = question.title;
+    el("question-subtitle").textContent = question.subtitle;
+    el("vote-status").textContent = "";
+    el("options").replaceChildren();
+    question.options.forEach((option) => {
+      const label = document.createElement("label");
+      label.className = "option";
+      const input = document.createElement("input");
+      input.type = "radio";
+      input.name = "answer";
+      input.value = option.id;
+      input.addEventListener("change", () => cast(question.id, option.id, index));
+      const text = document.createElement("span");
+      text.textContent = option.label;
+      label.append(input, text);
+      el("options").append(label);
+    });
+    shownQuestion = question.id;
+  }
 
-  el("question-title").textContent = question.title;
-  el("question-subtitle").textContent = question.subtitle;
-
-  const list = el("options");
-  list.replaceChildren();
-  question.options.forEach((option, position) => {
-    const item = document.createElement("li");
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "option";
-    button.setAttribute("role", "radio");
-    button.setAttribute("aria-checked", String(option.id === chosen));
-
-    const key = document.createElement("span");
-    key.className = "key";
-    key.setAttribute("aria-hidden", "true");
-    key.textContent = optionKey(position);
-
-    const label = document.createElement("span");
-    label.textContent = option.label;
-
-    button.append(key, label);
-    button.addEventListener("click", () => cast(question.id, option.id, index));
-    item.append(button);
-    list.append(item);
-  });
-
+  const chosen = saving?.question === question.id ? saving.option : state.answers[question.id];
+  for (const input of el("options").querySelectorAll("input")) {
+    input.checked = input.value === chosen;
+    input.disabled = saving !== null;
+  }
+  const answered = Boolean(state.answers[question.id]);
   el("back").hidden = index === 0;
-  // Forward only once this question is answered, so the deck cannot be skipped
-  // on the way in but can be walked freely on the way back through.
-  el("forward").hidden = !chosen || index === questions.length - 1;
-  renderPips();
+  el("forward").hidden = !answered;
+  el("forward").textContent = index === questions.length - 1 ? "Done" : "Next →";
+  el("back").disabled = saving !== null;
+  el("forward").disabled = saving !== null;
+  el("progress").textContent = `Question ${index + 1} of ${questions.length}`;
   show("voting");
+  if (changed) {
+    el("question-title").focus();
+    window.scrollTo(0, 0);
+  }
 }
 
 function render() {
   if (!state || questions.length === 0) return;
-
   if (!state.votingOpen) {
     const finished = state.phase === "finished";
     el("closed-title").textContent = finished ? "That's a wrap." : "Look up.";
     el("closed-copy").textContent = finished
-      ? "Final results are on the screen. Thanks for playing along."
+      ? "Thanks for sharing your experience. See you at the next session."
       : "Voting is closed and the results are on the screen.";
-    el("pips").hidden = true;
     show("closed");
     return;
   }
-
-  const target = cursor ?? firstUnanswered();
-  if (target === null) {
-    el("pips").hidden = true;
-    show("done");
-    return;
-  }
-  cursor = target;
-  renderQuestion(cursor);
+  cursor = cursor ?? firstUnanswered();
+  if (cursor === null && saving === null) show("done");
+  else renderQuestion(cursor ?? saving.index);
 }
 
-async function cast(questionId, optionId, index) {
-  // Show the choice immediately: the POST and its broadcast echo race, and a
-  // button that un-highlights for a moment reads as a dropped tap.
-  pending[questionId] = optionId;
+async function cast(question, option, index) {
+  if (saving) return;
+  saving = { question, option, index };
   renderQuestion(index);
-
-  setTimeout(() => {
-    const next = index + 1;
-    cursor = next < questions.length ? next : null;
-    render();
-  }, ADVANCE_MS);
-
+  el("vote-status").textContent = "Saving…";
   try {
     const response = await fetch("/api/vote", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question: questionId, option: optionId, voter: VOTER }),
+      body: JSON.stringify({ question, option, voter: VOTER }),
+      signal: AbortSignal.timeout(15000),
     });
-    if (response.ok) return;
+    if (!response.ok) throw new Error("Vote not confirmed");
+    state.answers[question] = option;
+    // Keep the confirmed choice visible briefly and absorb a rapid second tap.
+    await new Promise((resolve) => setTimeout(resolve, 260));
+    saving = null;
+    cursor = index + 1 < questions.length ? index + 1 : null;
+    render();
   } catch {
-    // Nothing to retry against: a congested network is exactly when a retry
-    // loop hurts most, and the next broadcast re-renders from server truth.
+    saving = null;
+    render();
+    el("vote-status").textContent = "Couldn't confirm your answer. Choose an answer to try again.";
+    if (shownStage === "voting") el("vote-status").focus();
   }
-  // Drop the optimistic copy and re-render, so the pip goes dark instead of
-  // claiming an answer the server never accepted.
-  delete pending[questionId];
-  render();
 }
 
 el("back").addEventListener("click", () => {
-  if (cursor !== null && cursor > 0) {
-    cursor -= 1;
-    render();
-  }
+  if (saving || cursor === null || cursor === 0) return;
+  cursor -= 1;
+  render();
 });
-
 el("forward").addEventListener("click", () => {
-  if (cursor !== null && cursor < questions.length - 1) {
-    cursor += 1;
-    render();
-  }
+  if (saving || cursor === null) return;
+  cursor = cursor + 1 < questions.length ? cursor + 1 : null;
+  render();
 });
-
 el("review-answers").addEventListener("click", () => {
   cursor = 0;
   render();
@@ -187,41 +146,32 @@ el("review-answers").addEventListener("click", () => {
 
 function connect() {
   const source = new EventSource(`/events?voter=${encodeURIComponent(VOTER)}`);
+  source.addEventListener("open", () => { el("connection-status").hidden = true; });
   source.addEventListener("state", (event) => {
     const next = JSON.parse(event.data);
-    // Once the server confirms an answer, drop the optimistic copy so the two
-    // cannot disagree after a vote is changed from another device.
-    for (const [questionId, optionId] of Object.entries(next.answers ?? {})) {
-      if (pending[questionId] === optionId) delete pending[questionId];
-    }
-    // Reopening voting after a review sends everyone back to their first gap.
     if (state && !state.votingOpen && next.votingOpen) cursor = null;
     state = next;
+    el("connection-status").hidden = true;
     render();
   });
   source.addEventListener("error", () => {
-    if (source.readyState === EventSource.CLOSED) show("offline");
+    el("connection-status").hidden = false;
+    if (!state) show("offline");
   });
 }
 
-const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
 async function start() {
-  // Retry rather than give up: a single lost request during the scan rush would
-  // otherwise leave this phone on an empty page until its owner reloaded.
   for (let attempt = 0; ; attempt += 1) {
     try {
       const response = await fetch("/api/poll");
-      if (!response.ok) throw new Error(String(response.status));
+      if (!response.ok) throw new Error("Poll unavailable");
       questions = (await response.json()).questions;
-      render();
       connect();
       return;
     } catch {
       show("offline");
-      await wait(Math.min(1000 * 2 ** attempt, 10000));
+      await new Promise((resolve) => setTimeout(resolve, Math.min(1000 * 2 ** attempt, 10000)));
     }
   }
 }
-
 start();

@@ -1,15 +1,13 @@
 """Live poll state, vote tallies, and the persistence boundary.
 
-The running process owns the authoritative tally in memory: one Cloud Run
-instance serves the whole room, so a vote becomes visible on the stage screen
-without a round trip to Firestore. Firestore is the durable record, written
-after the in-memory update and read back only at startup, so a restart resumes
-where it stopped instead of losing the evening.
+One Cloud Run instance serves the whole room. Votes are persisted before they
+enter the live tally or reach subscribers. Firestore is read back at startup
+so a restart resumes from confirmed answers.
 
 The run of show has three phases. During ``SLIDESHOW`` the room answers every
 question at its own pace while the stage screen cycles through them with live
 results. ``REVIEW`` closes voting and hands the pace to the presenter, one
-question at a time. ``FINISHED`` puts the whole board up at once.
+question at a time. ``FINISHED`` thanks the room and keeps voting closed.
 """
 
 from __future__ import annotations
@@ -181,7 +179,7 @@ class Poll:
         return {question_id: ballots[voter_id] for question_id, ballots in self._ballots.items() if voter_id in ballots}
 
     def results(self, question: Question) -> QuestionResults:
-        """Per-option standings, highest share first.
+        """Per-option standings in the configured answer order.
 
         Option labels are deliberately absent: clients fetch the deck once from
         ``/api/poll`` and join on the id, which keeps every streamed frame small
@@ -203,7 +201,6 @@ class Poll:
             )
             for option in question.options
         ]
-        rows.sort(key=lambda row: -row["count"])
         return QuestionResults(total=total, rows=rows)
 
     def snapshot(self, *, voter_id: str | None = None) -> dict[str, Any]:
@@ -246,29 +243,25 @@ class Poll:
             if option_id not in question.option_ids():
                 msg = "unknown option for this question"
                 raise ValueError(msg)
-            self._ballots[question_id][voter_id] = option_id
             vote = VoteRecord(question_id=question_id, voter_id=voter_id, option_id=option_id)
-        # Persist outside the lock: the room already sees the vote, and a slow
-        # Firestore write must not serialise the next voter behind it. The cost
-        # is that two ballots from the same phone within one write latency can
-        # reach Firestore out of order, so a restart could resurrect the earlier
-        # answer. Memory is authoritative for the session and that window is a
-        # few hundred milliseconds, which is the right trade for a live room.
-        await self._repository.save_vote(vote)
-        self._publish()
+            # Serialize durable writes with controls and other ballots: failed
+            # saves never enter the tally, and a late write cannot undo a change
+            # or resurrect a ballot after a wipe. Reads remain non-blocking.
+            await self._repository.save_vote(vote)
+            self._ballots[question_id][voter_id] = option_id
+            self._publish()
 
     async def advance(self, action: str) -> None:
-        """Apply a presenter action to the run of show."""
+        """Apply a presenter action only after storage confirms it."""
         async with self._lock:
-            self._state = _next_state(self._state, action, len(self._config.questions) - 1)
-            state = self._state
+            state = _next_state(self._state, action, len(self._config.questions) - 1)
             if action == "clear":
+                await self._repository.clear_votes()
                 for ballots in self._ballots.values():
                     ballots.clear()
-        if action == "clear":
-            await self._repository.clear_votes()
-        await self._repository.save_state(state)
-        self._publish()
+            await self._repository.save_state(state)
+            self._state = state
+            self._publish()
 
     # -- fan-out -----------------------------------------------------------
 
