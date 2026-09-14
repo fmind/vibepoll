@@ -50,6 +50,10 @@ function renderQuestion(index) {
     el("question-title").textContent = question.title;
     el("question-subtitle").textContent = question.subtitle;
     el("vote-status").textContent = "";
+    el("options").hidden = question.type === "text";
+    el("text-answer").hidden = question.type !== "text";
+    el("message").maxLength = question.maxLength ?? 500;
+    el("message").value = state.answers[question.id] ?? "";
     el("options").replaceChildren();
     question.options.forEach((option) => {
       const label = document.createElement("label");
@@ -68,11 +72,16 @@ function renderQuestion(index) {
   }
 
   const chosen = saving?.question === question.id ? saving.option : state.answers[question.id];
+  el("stage-voting").setAttribute("aria-busy", String(saving !== null));
+  el("message").readOnly = saving !== null;
+  el("send-message").disabled = saving !== null || !el("message").value.trim();
   for (const input of el("options").querySelectorAll("input")) {
     input.checked = input.value === chosen;
     input.disabled = saving !== null;
   }
-  const answered = Boolean(state.answers[question.id]);
+  // A streamed confirmation may arrive before the POST completes. Keep the
+  // navigation stable until the save finishes and we advance once.
+  const answered = saving?.question === question.id ? saving.answered : Boolean(state.answers[question.id]);
   el("back").hidden = index === 0;
   el("forward").hidden = !answered;
   el("forward").textContent = index === questions.length - 1 ? "Done" : "Next →";
@@ -102,20 +111,20 @@ function render() {
   else renderQuestion(cursor ?? saving.index);
 }
 
-async function cast(question, option, index) {
+async function cast(question, option, index, text = null) {
   if (saving) return;
-  saving = { question, option, index };
+  saving = { question, option, index, answered: Boolean(state.answers[question]) };
   renderQuestion(index);
-  el("vote-status").textContent = "Saving…";
+  el("vote-status").textContent = "";
   try {
     const response = await fetch("/api/vote", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question, option, voter: VOTER }),
+      body: JSON.stringify({ question, ...(text === null ? { option } : { text }), voter: VOTER }),
       signal: AbortSignal.timeout(15000),
     });
     if (!response.ok) throw new Error("Vote not confirmed");
-    state.answers[question] = option;
+    state.answers[question] = text ?? option;
     // Keep the confirmed choice visible briefly and absorb a rapid second tap.
     await new Promise((resolve) => setTimeout(resolve, 260));
     saving = null;
@@ -124,10 +133,21 @@ async function cast(question, option, index) {
   } catch {
     saving = null;
     render();
-    el("vote-status").textContent = "Couldn't confirm your answer. Choose an answer to try again.";
+    el("vote-status").textContent = text === null
+      ? "Couldn't confirm your answer. Choose an answer to try again."
+      : "Couldn't confirm your message. Press Share message to try again.";
     if (shownStage === "voting") el("vote-status").focus();
   }
 }
+
+el("message").addEventListener("input", () => {
+  el("send-message").disabled = saving !== null || !el("message").value.trim();
+});
+el("send-message").addEventListener("click", () => {
+  if (cursor === null || saving) return;
+  const text = el("message").value.trim();
+  if (text) cast(questions[cursor].id, null, cursor, text);
+});
 
 el("back").addEventListener("click", () => {
   if (saving || cursor === null || cursor === 0) return;

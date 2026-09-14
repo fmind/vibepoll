@@ -6,7 +6,7 @@ People scan a QR code, answer on their phone during the break, and the results b
 
 Slido, except vibe-coded.
 
-Built for [Agentic AI Night #1](https://luma.com/4ciica7u), the AAIF Luxembourg launch. The default `poll.yaml` contains six questions about agent experience, attendee roles, use cases, reliability, barriers, and the next session — replace that one file and it is your poll.
+Built for [Agentic AI Night #1](https://luma.com/4ciica7u), the AAIF Luxembourg launch. The default `poll.yaml` contains eight questions about agent experience, attendee roles, use cases, reliability, barriers, the next session, favorite AAIF projects, and a message for tonight — replace that one file and it is your poll.
 
 ## How it works
 
@@ -20,7 +20,7 @@ Three surfaces, one shared state:
 
 The session runs in three phases.
 
-**`slideshow` — during the break.** Every question is open at once and the room answers at its own pace: scan, answer question 1, the phone advances to question 2 after the save is confirmed, and so on to the end. A failed request stays on the question with a retry message. Native radio controls support keyboard navigation, and a numbered progress label tracks the remaining questions.
+**`slideshow` — during the break.** Every question is open at once and the room answers at its own pace: scan, answer question 1, the phone advances to question 2 after the save is confirmed, and so on to the end. Saves keep the question layout stable without a flashing status message; a failed request stays on the question with a retry message. Free-text questions have a Share message button and accept up to 500 characters. Native radio controls support keyboard navigation, and a numbered progress label tracks the remaining questions.
 
 The stage screen splits: the QR holds the right third for the entire break, and only the left two thirds animate, cycling the welcome panel and then each question with its live results. The code never rotates away, so nobody loses it mid-scan and a latecomer can always join. `panel_seconds` in the poll file sets the dwell time.
 
@@ -71,21 +71,32 @@ questions:
         label: "Build agents"
 ```
 
-| Field                 | Required | Notes                                                            |
-| --------------------- | -------- | ---------------------------------------------------------------- |
-| `id`                  | yes      | `[A-Za-z0-9_-]`, 1–64 characters. Keys the Firestore document.   |
-| `title`               | yes      | Shown on both screens and in the browser tab.                    |
-| `subtitle`            | no       | Eyebrow line above the title.                                    |
-| `repo`                | no       | `https://…`. Rendered on the stage screen's bottom strip.        |
-| `panel_seconds`       | no       | 0 < n ≤ 300. Default `5`.                                        |
-| `questions`           | yes      | 1–30, each with a unique `id`.                                   |
-| `questions[].options` | yes      | 2–10 per question, each with a unique `id` within that question. |
+| Field                 | Required    | Notes                                                            |
+| --------------------- | ----------- | ---------------------------------------------------------------- |
+| `id`                  | yes         | `[A-Za-z0-9_-]`, 1–64 characters. Keys the Firestore document.   |
+| `title`               | yes         | Shown on both screens and in the browser tab.                    |
+| `subtitle`            | no          | Eyebrow line above the title.                                    |
+| `repo`                | no          | `https://…`. Rendered on the stage screen's bottom strip.        |
+| `panel_seconds`       | no          | 0 < n ≤ 300. Default `5`.                                        |
+| `questions`           | yes         | 1–30, each with a unique `id`.                                   |
+| `questions[].options` | for choices | 2–10 per question, each with a unique `id` within that question. |
+
+Choice questions use `type: choice` by default and require 2–10 options. For a free-text question, set `type: text` and omit `options`:
+
+```yaml
+- id: message
+  type: text
+  title: "What would you like to share tonight?"
+  subtitle: "Your message will appear on the big screen. Up to 500 characters."
+```
+
+Messages must contain non-whitespace text and can be edited like other answers. On the stage screen, messages appear in a scrollable list; the total counts submitted messages. Adding questions with new ids preserves earlier ballots under the same poll id.
 
 The file is read and validated once at startup, so a typo stops the process with the field path rather than showing an empty screen to a room. Duplicate ids, a missing field, an unknown key, and an out-of-range `panel_seconds` are all refused.
 
 Two YAML traps the schema will catch but that are easier to avoid: a bare `yes`, `no`, `on` or `off` parses as a **boolean**, so quote an option id spelled like one; and an unquoted `Night #1` loses everything from the `#` onward. The shipped `poll.yaml` quotes all prose for exactly this reason.
 
-**Option ids are the storage key.** Rewording a label leaves existing ballots intact. If the answer meanings change, use a new poll `id` so earlier responses remain separate; the shipped six-question deck uses `aaif-luxembourg-1-v2`. Shortening the deck between sessions is safe: ballots for questions that no longer exist are dropped at startup rather than resurrected.
+**Option ids are the storage key.** Rewording a label leaves existing ballots intact. If the answer meanings change, use a new poll `id` so earlier responses remain separate; the shipped deck uses `aaif-luxembourg-1-v2`. Shortening the deck between sessions is safe: ballots for questions that no longer exist are dropped at startup rather than resurrected.
 
 ## Run it locally
 
@@ -117,11 +128,11 @@ One Cloud Run instance serves the whole room. Each vote is saved to Firestore be
 
 This is why the service is pinned to `--max-instances=1`. A second instance would serve a second, disagreeing poll. Room capacity is raised with `--concurrency` — every phone holds one SSE connection open for the whole session — never by lifting the instance cap.
 
-Ballots are keyed `{question_id}__{voter_id}`, where the voter id is a random value minted by the browser and kept in `localStorage`. Changing your answer moves your vote instead of adding one, and the application stores the answer, random browser ID, and timestamp, without collecting an account, address, or user agent. Results keep the configured answer order, including frequency scales, and use labels without answer letters. Because the server remembers which questions a voter has answered, a phone that reloads mid-deck resumes at its first unanswered question.
+Ballots are keyed `{question_id}__{voter_id}`, where the voter id is a random value minted by the browser and kept in `localStorage`. Changing your answer moves your vote instead of adding one, and the application stores the answer, random browser ID, and timestamp, without collecting an account, address, or user agent. Free-text ballots store the submitted message in a separate `text` field; existing option ballots keep their original format. Results keep the configured answer order, including frequency scales, and use labels without answer letters. Because the server remembers which questions a voter has answered, a phone that reloads mid-deck resumes at its first unanswered question.
 
-Results are public — the room watches them build on the stage screen through the whole break — so nothing is withheld from a phone. The presenter key guards the run of show (`/api/control`), not the numbers.
+Results are public — the room watches them build on the stage screen through the whole break — so nothing is withheld from a phone. Free-text messages are also public, rendered as plain text on the stage screen, and the message prompt explains this before submission. Avoid including personal details. The presenter key guards the run of show (`/api/control`), not the numbers.
 
-Streamed frames carry only ids and counts. Question prose is fetched once from `/api/poll` and joined on the id, which is what makes it affordable to push a fresh frame to every phone on every vote. The fan-out queue is one slot deep and carries no payload: it is a "something changed" flag, so a burst of votes collapses into a single re-render and a slow subscriber is never evicted.
+Streamed frames carry choice ids and counts, plus the submitted messages for free-text questions. Question prose is fetched once from `/api/poll` and joined on the id, which is what makes it affordable to push a fresh frame to every phone on every vote. The fan-out queue is one slot deep and carries no payload: it is a "something changed" flag, so a burst of votes collapses into a single re-render and a slow subscriber is never evicted.
 
 ### Layout
 

@@ -2,7 +2,7 @@
 
 Backend tests use a small synthetic deck so rewording questions does not break
 behaviour checks. The config test validates the shipped YAML, and browser tests
-exercise the real six-question deck, including its projector layout.
+exercise the real eight-question deck, including its projector layout.
 """
 
 from __future__ import annotations

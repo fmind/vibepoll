@@ -126,3 +126,28 @@ questions:
         label: "Deployment and operations"
       - id: unsure
         label: "Not sure"
+
+  # Current foundation projects: https://aaif.io/
+  - id: aaif-project
+    title: "Which AAIF project would you most like us to cover?"
+    subtitle: "Pick your favorite for a future session."
+    options:
+      - id: mcp
+        label: "Model Context Protocol (MCP)"
+      - id: agents-md
+        label: "AGENTS.md"
+      - id: goose
+        label: "goose"
+      - id: agentgateway
+        label: "agentgateway"
+      - id: a2a
+        label: "Agent2Agent (A2A)"
+      - id: agent-router
+        label: "Agent Router"
+      - id: unsure
+        label: "Not sure"
+
+  - id: message
+    type: text
+    title: "What message would you like to share with the audience or organizers tonight?"
+    subtitle: "Your message will appear on the big screen. Up to 500 characters; leave out personal details."

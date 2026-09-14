@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from vibepoll.config import PollConfig, load_config
+from vibepoll.config import PollConfig, Question, load_config
 
 _MINIMAL = """
 id: demo
@@ -35,7 +35,9 @@ def test_the_shipped_definition_is_valid() -> None:
     """The file the image actually deploys with, so a typo fails here not on stage."""
     config = load_config(REPO_ROOT / "poll.yaml")
     assert config.questions
-    assert all(question.options for question in config.questions)
+    assert len(config.questions) == 8
+    assert config.questions[-1].type == "text"
+    assert config.question("aaif-project") is not None
 
 
 def test_a_minimal_definition_loads_with_defaults(tmp_path: Path) -> None:
@@ -98,6 +100,16 @@ def test_a_question_needs_at_least_two_options() -> None:
         PollConfig.model_validate(
             {"id": "d", "title": "D", "questions": [{"id": "q", "title": "T", "options": [{"id": "a", "label": "A"}]}]}
         )
+
+
+def test_text_questions_have_no_options() -> None:
+    assert Question(id="message", title="Message", type="text").options == ()
+    with pytest.raises(ValueError, match="cannot have options"):
+        Question.model_validate(
+            {"id": "message", "title": "Message", "type": "text", "options": [{"id": "a", "label": "A"}]}
+        )
+    with pytest.raises(ValueError, match="at least 2"):
+        Question(id="message", title="Message")
 
 
 def test_duplicate_option_ids_are_refused() -> None:

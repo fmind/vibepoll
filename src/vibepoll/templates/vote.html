@@ -15,6 +15,10 @@
     <h2 class="question" id="question-title" tabindex="-1"></h2>
     <p class="muted subtitle" id="question-subtitle"></p>
     <div class="options" id="options" role="radiogroup" aria-labelledby="question-title" aria-describedby="question-subtitle"></div>
+    <div class="text-answer" id="text-answer" hidden>
+      <textarea id="message" rows="5" aria-labelledby="question-title" aria-describedby="question-subtitle" placeholder="Your message for tonight…"></textarea>
+      <button type="button" class="option send-message" id="send-message">Share message</button>
+    </div>
     <p class="muted" id="vote-status" role="status" tabindex="-1"></p>
     <div class="stage-nav">
       <button type="button" class="link-button" id="back" hidden>← Previous</button>

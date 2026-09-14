@@ -29,7 +29,7 @@ from litestar.static_files import create_static_files_router
 from litestar.template.config import TemplateConfig
 from pydantic import BaseModel, Field
 
-from vibepoll.config import PollConfig, load_config
+from vibepoll.config import MAX_TEXT_LENGTH, PollConfig, load_config
 from vibepoll.settings import Settings, load_settings
 from vibepoll.store import MemoryRepository, Poll, Repository
 
@@ -50,7 +50,8 @@ class VotePayload(BaseModel):
     """One anonymous ballot submitted by a phone."""
 
     question: Annotated[str, Field(min_length=1, max_length=64)]
-    option: Annotated[str, Field(min_length=1, max_length=64)]
+    option: Annotated[str | None, Field(min_length=1, max_length=64)] = None
+    text: Annotated[str | None, Field(min_length=1, max_length=MAX_TEXT_LENGTH)] = None
     voter: Annotated[str, Field(min_length=8, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")]
 
 
@@ -145,7 +146,7 @@ async def cast_vote(request: Request[Any, Any, Any], data: Annotated[VotePayload
     """Record one ballot."""
     poll: Poll = request.app.state.poll
     try:
-        await poll.cast(data.question, data.voter, data.option)
+        await poll.cast(data.question, data.voter, data.option, text=data.text)
     except ValueError as error:
         raise ValidationException(detail=str(error)) from error
     return {"status": "ok"}
@@ -168,9 +169,8 @@ async def control(request: Request[Any, Any, Any], data: Annotated[ControlPayloa
 def poll_definition(request: Request[Any, Any, Any]) -> dict[str, Any]:
     """Serve the deck and its pacing once, at page load.
 
-    Streamed frames carry only ids and counts; clients join them against this
-    payload. Keeping the prose out of the broadcast is what makes it affordable
-    to push a fresh frame to every phone on every vote.
+    Clients join choice ids and counts against this payload. Question prose is
+    fetched once; audience messages are included in streamed results.
     """
     config: PollConfig = request.app.state.config
     return {
@@ -180,6 +180,8 @@ def poll_definition(request: Request[Any, Any, Any]) -> dict[str, Any]:
                 "id": question.id,
                 "title": question.title,
                 "subtitle": question.subtitle,
+                "type": question.type,
+                "maxLength": MAX_TEXT_LENGTH if question.type == "text" else None,
                 "options": [{"id": option.id, "label": option.label} for option in question.options],
             }
             for question in config.questions

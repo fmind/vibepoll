@@ -46,25 +46,52 @@ function labelsFor(questionId) {
 
 function renderBars(node, questionId, rows) {
   const labels = labelsFor(questionId);
-  node.replaceChildren();
   rows.forEach((row) => {
-    const item = document.createElement("li");
-    item.className = "bar";
+    let item = node.querySelector(`[data-option="${row.id}"]`);
+    if (!item) {
+      item = document.createElement("li");
+      item.className = "bar";
+      item.dataset.option = row.id;
+      const label = document.createElement("span");
+      label.className = "bar-label";
+      label.textContent = labels.get(row.id) ?? row.id;
+      const value = document.createElement("span");
+      value.className = "bar-value";
+      item.append(label, value);
+      node.append(item);
+    }
     item.dataset.winner = String(row.winner);
     // Set through CSSOM rather than a style attribute so the strict
     // `style-src 'self'` policy stays in force.
     item.style.setProperty("--pct", `${row.percent}%`);
 
-    const label = document.createElement("span");
-    label.className = "bar-label";
-    label.append(document.createTextNode(labels.get(row.id) ?? row.id));
+    const value = item.querySelector(".bar-value");
+    const text = `${row.percent}% · ${row.count}`;
+    if (value.textContent !== text) value.textContent = text;
+  });
+}
 
-    const value = document.createElement("span");
-    value.className = "bar-value";
-    value.textContent = `${row.percent}% · ${row.count}`;
-
-    item.append(label, value);
-    node.append(item);
+function renderResults(node, question, results) {
+  if (node.dataset.question !== question.id) {
+    node.replaceChildren();
+    node.dataset.question = question.id;
+    node.scrollTop = 0;
+  }
+  node.classList.toggle("messages", question.type === "text");
+  if (question.type !== "text") {
+    renderBars(node, question.id, results.rows);
+    return;
+  }
+  const messages = results.messages?.length ? results.messages : ["No messages yet. Share yours on your phone."];
+  while (node.children.length > messages.length) node.lastChild.remove();
+  messages.forEach((message, index) => {
+    let item = node.children[index];
+    if (!item) {
+      item = document.createElement("li");
+      node.append(item);
+    }
+    // Audience input stays plain text, including anything that looks like HTML.
+    if (item.textContent !== message) item.textContent = message;
   });
 }
 
@@ -116,7 +143,7 @@ function renderAmbient() {
   el("a-position").textContent = `[${panel}/${questions.length}]`;
   el("a-title").textContent = question.title;
   el("a-count").textContent = String(results.total);
-  renderBars(el("a-bars"), question.id, results.rows);
+  renderResults(el("a-bars"), question, results);
   showPanel("question");
 }
 
@@ -127,7 +154,7 @@ function renderReview(index) {
   el("q-position").textContent = `[${index + 1}/${questions.length}]`;
   el("q-title").textContent = question.title;
   el("q-count").textContent = String(results.total);
-  renderBars(el("q-bars"), question.id, results.rows);
+  renderResults(el("q-bars"), question, results);
   show("question");
 }
 

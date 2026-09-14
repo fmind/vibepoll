@@ -18,9 +18,9 @@ from collections import Counter
 from collections.abc import AsyncIterator, Iterable
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Any, Protocol, TypedDict
+from typing import Any, NotRequired, Protocol, TypedDict
 
-from vibepoll.config import PollConfig, Question
+from vibepoll.config import MAX_TEXT_LENGTH, PollConfig, Question
 
 __all__ = [
     "MemoryRepository",
@@ -70,19 +70,21 @@ class OptionResult(TypedDict):
 
 
 class QuestionResults(TypedDict):
-    """Every option's standing for one question."""
+    """Option standings or audience messages for one question."""
 
     total: int
     rows: list[OptionResult]
+    messages: NotRequired[list[str]]
 
 
 @dataclass(frozen=True, slots=True)
 class VoteRecord:
-    """One anonymous ballot: a random client identifier and a chosen option."""
+    """One ballot: a random client identifier and an option or message."""
 
     question_id: str
     voter_id: str
-    option_id: str
+    option_id: str | None = None
+    text: str | None = None
 
 
 class Repository(Protocol):
@@ -134,7 +136,7 @@ class Poll:
         self._repository = repository
         self._config = config
         self._state = PollState()
-        # question id -> voter id -> option id. Keeping the raw ballots rather
+        # question id -> voter id -> option id or message. Keeping raw ballots rather
         # than running counters means a changed answer can never drift the
         # tally: every snapshot recounts from the ballots that actually exist.
         self._ballots: dict[str, dict[str, str]] = {question.id: {} for question in config.questions}
@@ -151,8 +153,11 @@ class Poll:
         for vote in await self._repository.load_votes():
             # A ballot for a question the current definition no longer has is
             # dropped rather than resurrected: the deck is the source of truth.
-            if vote.question_id in self._ballots:
-                self._ballots[vote.question_id][vote.voter_id] = vote.option_id
+            question = self._config.question(vote.question_id)
+            if question is not None:
+                answer = vote.text if question.type == "text" else vote.option_id
+                if answer is not None:
+                    self._ballots[vote.question_id][vote.voter_id] = answer
 
     async def close(self) -> None:
         await self._repository.close()
@@ -185,6 +190,9 @@ class Poll:
         ``/api/poll`` and join on the id, which keeps every streamed frame small
         enough to broadcast on each vote.
         """
+        if question.type == "text":
+            messages = list(self._ballots[question.id].values())
+            return QuestionResults(total=len(messages), rows=[], messages=messages)
         counts = self.tally(question.id)
         total = sum(counts.values())
         top = max(counts.values(), default=0)
@@ -221,7 +229,9 @@ class Poll:
 
     # -- writes ------------------------------------------------------------
 
-    async def cast(self, question_id: str, voter_id: str, option_id: str) -> None:
+    async def cast(
+        self, question_id: str, voter_id: str, option_id: str | None = None, *, text: str | None = None
+    ) -> None:
         """Record one ballot, replacing any earlier answer to the same question.
 
         Any question accepts a ballot while voting is open: the room answers at
@@ -240,15 +250,22 @@ class Poll:
             if question is None:
                 msg = f"unknown question: {question_id}"
                 raise ValueError(msg)
-            if option_id not in question.option_ids():
-                msg = "unknown option for this question"
-                raise ValueError(msg)
-            vote = VoteRecord(question_id=question_id, voter_id=voter_id, option_id=option_id)
+            if question.type == "text":
+                if option_id is not None or text is None or not text.strip() or len(text) > MAX_TEXT_LENGTH:
+                    raise ValueError(f"provide a message of 1 to {MAX_TEXT_LENGTH} characters and no option")
+                answer = text.strip()
+                vote = VoteRecord(question_id=question_id, voter_id=voter_id, text=answer)
+            else:
+                if text is not None or option_id is None or option_id not in question.option_ids():
+                    msg = "unknown option for this question"
+                    raise ValueError(msg)
+                answer = option_id
+                vote = VoteRecord(question_id=question_id, voter_id=voter_id, option_id=option_id)
             # Serialize durable writes with controls and other ballots: failed
             # saves never enter the tally, and a late write cannot undo a change
             # or resurrect a ballot after a wipe. Reads remain non-blocking.
             await self._repository.save_vote(vote)
-            self._ballots[question_id][voter_id] = option_id
+            self._ballots[question_id][voter_id] = answer
             self._publish()
 
     async def advance(self, action: str) -> None:

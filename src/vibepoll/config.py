@@ -12,17 +12,18 @@ already stored in Firestore; renaming an id does.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated, Self
+from typing import Annotated, Literal, Self
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
-__all__ = ["Option", "PollConfig", "Question", "load_config"]
+__all__ = ["MAX_TEXT_LENGTH", "Option", "PollConfig", "Question", "load_config"]
 
 # Ids travel in URLs, Firestore document names, and JSON keys, so they are kept
 # to a conservative alphabet rather than sanitised at each boundary.
 _ID = r"^[A-Za-z0-9_-]{1,64}$"
 _FROZEN = ConfigDict(frozen=True, extra="forbid")
+MAX_TEXT_LENGTH = 500
 
 
 class Option(BaseModel):
@@ -35,7 +36,7 @@ class Option(BaseModel):
 
 
 class Question(BaseModel):
-    """One question with its closed answer set."""
+    """One choice or free-text question."""
 
     model_config = _FROZEN
 
@@ -44,13 +45,18 @@ class Question(BaseModel):
     subtitle: Annotated[str, Field(max_length=240)] = ""
     # Two is the fewest that makes a poll; ten bounds the choice list.
     # Check the actual question lengths at the venue's projector resolution.
-    options: Annotated[tuple[Option, ...], Field(min_length=2, max_length=10)]
+    type: Literal["choice", "text"] = "choice"
+    options: Annotated[tuple[Option, ...], Field(max_length=10)] = ()
 
     def option_ids(self) -> frozenset[str]:
         return frozenset(option.id for option in self.options)
 
     @model_validator(mode="after")
-    def _unique_option_ids(self) -> Self:
+    def _validate_options(self) -> Self:
+        if self.type == "choice" and len(self.options) < 2:
+            raise ValueError("choice questions need at least 2 options")
+        if self.type == "text" and self.options:
+            raise ValueError("text questions cannot have options")
         # Pydantic validates each id in isolation; a repeat only shows up across
         # siblings, and it would make a ballot for this question ambiguous.
         if len(self.option_ids()) != len(self.options):

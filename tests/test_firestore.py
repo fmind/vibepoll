@@ -151,6 +151,14 @@ async def test_a_ballot_stores_no_identifying_fields(repository: FirestoreReposi
     assert set(document) == {"question", "voter", "option", "at"}
 
 
+async def test_messages_round_trip_and_can_be_replaced(repository: FirestoreRepository) -> None:
+    await repository.save_vote(VoteRecord(question_id="message", voter_id="abc", text="Thanks!"))
+    corrected = VoteRecord(question_id="message", voter_id="abc", text="More MCP demos, please!")
+    await repository.save_vote(corrected)
+    assert list(await repository.load_votes()) == [corrected]
+    assert set(_client(repository).store["polls/test-poll/votes/message__abc"]) == {"question", "voter", "text", "at"}
+
+
 async def test_malformed_ballots_are_skipped_rather_than_crashing_startup(repository: FirestoreRepository) -> None:
     _client(repository).store["polls/test-poll/votes/broken"] = {"question": "merger", "option": 42}
     await repository.save_vote(VoteRecord(question_id="merger", voter_id="abc", option_id="yes"))

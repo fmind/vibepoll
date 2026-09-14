@@ -118,6 +118,20 @@ p { margin: 0; }
 .option:has(input:disabled) { cursor: wait; }
 .option:focus-within { outline: 3px solid var(--accent); outline-offset: 3px; }
 #vote-status:empty { display: none; }
+.text-answer { display: grid; gap: 0.9rem; }
+.text-answer textarea {
+  width: 100%;
+  resize: vertical;
+  padding: 1rem;
+  font: inherit;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius);
+}
+.send-message { justify-content: center; border-color: var(--accent); }
+.send-message:disabled { cursor: default; }
 .connection-status { color: var(--danger); font-size: 0.85rem; }
 
 :focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
@@ -387,6 +401,24 @@ p { margin: 0; }
 .bars.big .bar { padding: 1.1rem 1.3rem; border-radius: 12px; }
 .bars.big .bar-label { font-size: clamp(1rem, 1.35vw, 1.6rem); }
 .bars.big .bar-value { font-size: clamp(1.1rem, 1.7vw, 2rem); }
+
+.bars.messages {
+  display: block;
+  overflow-y: auto;
+  max-height: 45vh;
+  overscroll-behavior: contain;
+}
+.messages li {
+  padding: 0.8rem 1rem;
+  margin-bottom: 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  font-size: clamp(1rem, min(1.8vw, 2.8vh), 1.7rem);
+  line-height: 1.4;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
 
 .farewell { text-align: center; }
 

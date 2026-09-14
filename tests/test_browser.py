@@ -87,10 +87,10 @@ def test_a_failed_vote_stays_on_the_question_and_can_be_retried(phone: Page) -> 
     phone.get_by_role("radio").first.click()
     expect(phone.locator("#vote-status")).to_contain_text("Couldn't confirm")
     expect(phone.locator("#question-title")).to_have_text(title)
-    expect(phone.locator("#progress")).to_have_text("Question 1 of 6")
+    expect(phone.locator("#progress")).to_have_text("Question 1 of 8")
     phone.unroute("**/api/vote")
     phone.get_by_role("radio").first.click()
-    expect(phone.locator("#progress")).to_have_text("Question 2 of 6")
+    expect(phone.locator("#progress")).to_have_text("Question 2 of 8")
     expect(phone.locator("#question-title")).to_be_focused()
 
 
@@ -105,26 +105,115 @@ def test_other_voters_do_not_remove_keyboard_focus(phone: Page, browser_server: 
     phone.wait_for_timeout(200)
     expect(radio).to_be_focused()
     phone.keyboard.press("ArrowDown")
-    expect(phone.locator("#progress")).to_have_text("Question 2 of 6")
+    expect(phone.locator("#progress")).to_have_text("Question 2 of 8")
     expect(phone.locator("#question-title")).to_be_focused()
 
 
-def test_completion_waits_for_confirmation_and_review_has_a_done_action(phone: Page) -> None:
-    for index in range(5):
-        phone.get_by_role("radio").first.click()
-        expect(phone.locator("#progress")).to_have_text(f"Question {index + 2} of 6")
+def test_slow_save_keeps_the_question_and_navigation_stable(phone: Page) -> None:
     held: list[Route] = []
     phone.route("**/api/vote", lambda route: held.append(route))
+    title = phone.locator("#question-title").inner_text()
+    before = phone.locator("#stage-voting").bounding_box()
     phone.get_by_role("radio").first.click()
-    expect(phone.locator("#vote-status")).to_have_text("Saving…")
+    expect(phone.locator("#stage-voting")).to_have_attribute("aria-busy", "true")
+    phone.wait_for_timeout(350)
+    expect(phone.locator("#question-title")).to_have_text(title)
+    expect(phone.locator("#vote-status")).to_be_empty()
+    expect(phone.locator("#forward")).to_be_hidden()
+    assert phone.locator("#stage-voting").bounding_box() == before
+    assert len(held) == 1
+    held[0].continue_()
+    expect(phone.locator("#progress")).to_have_text("Question 2 of 8")
+
+
+def test_message_draft_retry_reload_and_safe_projector_rendering(phone: Page, browser_server: str) -> None:
+    for index in range(7):
+        phone.get_by_role("radio").first.click()
+        expect(phone.locator("#progress")).to_have_text(f"Question {index + 2} of 8")
+    message = '<img src=x onerror="alert(1)"> Thanks!\nMore demos, please.'
+    phone.get_by_role("textbox").fill(message)
+    phone.get_by_role("textbox").focus()
+    assert phone.request.post(
+        f"{browser_server}/api/vote", data={"question": "familiarity", "option": "builder", "voter": "another-browser"}
+    ).ok
+    phone.wait_for_timeout(200)
+    expect(phone.get_by_role("textbox")).to_have_value(message)
+    expect(phone.get_by_role("textbox")).to_be_focused()
+    phone.route("**/api/vote", lambda route: route.fulfill(status=503, body="unavailable"))
+    phone.get_by_role("button", name="Share message", exact=True).click()
+    expect(phone.locator("#vote-status")).to_contain_text("Couldn't confirm your message")
+    expect(phone.get_by_role("textbox")).to_have_value(message)
+    phone.unroute("**/api/vote")
+    phone.get_by_role("button", name="Share message", exact=True).click()
+    expect(phone.locator("#stage-done")).to_be_visible()
+    phone.reload()
+    expect(phone.locator("#stage-done")).to_be_visible()
+    phone.get_by_role("button", name="Change an answer").click()
+    for _ in range(7):
+        phone.get_by_role("button", name="Next →", exact=True).click()
+    expect(phone.get_by_role("textbox")).to_have_value(message)
+    stage = phone.context.new_page()
+    stage.set_viewport_size({"width": 1280, "height": 720})
+    stage.goto(f"{browser_server}/present?key={_LOCAL_KEY}")
+    expect(stage.locator("#panel-welcome")).to_be_visible()
+    stage.locator('[data-step="-1"]').click()
+    expect(stage.locator("#a-bars li")).to_have_text([message])
+    assert stage.locator("#a-bars img").count() == 0
+    assert stage.evaluate("document.documentElement.scrollHeight <= innerHeight")
+    messages = [message]
+    for index in range(10):
+        long_message = f"Message {index}: " + "x" * 480
+        assert phone.request.post(
+            f"{browser_server}/api/vote",
+            data={"question": "message", "text": long_message, "voter": f"message-voter-{index}"},
+        ).ok
+        messages.append(long_message)
+    expect(stage.locator("#a-bars li")).to_have_text(messages)
+    assert stage.locator("#a-bars").evaluate("node => node.scrollHeight > node.clientHeight")
+    assert stage.evaluate("document.documentElement.scrollHeight <= innerHeight")
+    stage.get_by_role("button", name="Review", exact=True).click()
+    expect(stage.locator("#screen-question")).to_be_visible()
+    for index in range(7):
+        expect(stage.locator("#q-position")).to_have_text(f"[{index + 1}/8]")
+        stage.keyboard.press("ArrowRight")
+    expect(stage.locator("#q-bars li")).to_have_text(messages)
+    assert stage.locator("#q-bars img").count() == 0
+    assert stage.evaluate("document.documentElement.scrollHeight <= innerHeight")
+    stage.close()
+
+
+def test_projector_updates_existing_bars_without_replacing_them(phone: Page, browser_server: str) -> None:
+    stage = phone.context.new_page()
+    stage.goto(f"{browser_server}/present?key={_LOCAL_KEY}")
+    expect(stage.locator("#panel-welcome")).to_be_visible()
+    stage.locator('[data-step="1"]').click()
+    expect(stage.locator("#a-position")).to_have_text("[1/8]")
+    first_bar = stage.locator("#a-bars .bar").first.element_handle()
+    assert first_bar is not None
+    phone.get_by_role("radio").first.click()
+    expect(stage.locator("#a-bars .bar-value").first).to_have_text("100% · 1")
+    assert first_bar.evaluate("node => node === document.querySelector('#a-bars .bar')")
+    stage.close()
+
+
+def test_completion_waits_for_confirmation_and_review_has_a_done_action(phone: Page) -> None:
+    for index in range(7):
+        phone.get_by_role("radio").first.click()
+        expect(phone.locator("#progress")).to_have_text(f"Question {index + 2} of 8")
+    held: list[Route] = []
+    phone.route("**/api/vote", lambda route: held.append(route))
+    phone.get_by_role("textbox").fill("Thanks for organizing tonight!")
+    phone.get_by_role("button", name="Share message", exact=True).click()
+    expect(phone.locator("#stage-voting")).to_have_attribute("aria-busy", "true")
+    expect(phone.locator("#vote-status")).to_be_empty()
     phone.wait_for_timeout(350)
     expect(phone.locator("#stage-done")).to_be_hidden()
-    expect(phone.locator("#progress")).to_have_text("Question 6 of 6")
+    expect(phone.locator("#progress")).to_have_text("Question 8 of 8")
     assert len(held) == 1
     held[0].continue_()
     expect(phone.locator("#stage-done")).to_be_visible()
     phone.get_by_role("button", name="Change an answer").click()
-    for _ in range(5):
+    for _ in range(7):
         phone.get_by_role("button", name="Next →", exact=True).click()
     phone.get_by_role("button", name="Done", exact=True).click()
     expect(phone.locator("#stage-done")).to_be_visible()
@@ -137,9 +226,9 @@ def test_projector_steps_review_and_finish_fit_the_screen(phone: Page, browser_s
     stage.set_viewport_size({"width": 1280, "height": 720})
     stage.goto(f"{browser_server}/present?key={_LOCAL_KEY}")
     expect(stage.locator("#panel-welcome")).to_be_visible()
-    for index in range(6):
+    for index in range(8):
         stage.locator('[data-step="1"]').click()
-        expect(stage.locator("#a-position")).to_have_text(f"[{index + 1}/6]")
+        expect(stage.locator("#a-position")).to_have_text(f"[{index + 1}/8]")
         expect(phone.locator("#stage-voting")).to_be_visible()
         assert stage.evaluate("document.documentElement.scrollHeight <= innerHeight")
         for label in stage.locator("#a-bars .bar-label").all():
@@ -149,10 +238,10 @@ def test_projector_steps_review_and_finish_fit_the_screen(phone: Page, browser_s
     stage.get_by_role("button", name="Review", exact=True).click()
     expect(phone.locator("#stage-closed")).to_be_visible()
     assert stage.locator(".bar-key").count() == 0
-    for index in range(6):
-        expect(stage.locator("#q-position")).to_have_text(f"[{index + 1}/6]")
+    for index in range(8):
+        expect(stage.locator("#q-position")).to_have_text(f"[{index + 1}/8]")
         assert stage.evaluate("document.documentElement.scrollHeight <= innerHeight")
-        if index < 5:
+        if index < 7:
             stage.keyboard.press("ArrowRight")
     stage.get_by_role("button", name="Finish", exact=True).click()
     expect(stage.get_by_role("heading", name="Thank you.", exact=True)).to_be_visible()

@@ -67,8 +67,12 @@ class FirestoreRepository:
             data = snapshot.to_dict() or {}
             question_id, option_id = data.get("question"), data.get("option")
             voter_id = data.get("voter")
-            if isinstance(question_id, str) and isinstance(option_id, str) and isinstance(voter_id, str):
-                records.append(VoteRecord(question_id=question_id, voter_id=voter_id, option_id=option_id))
+            text = data.get("text")
+            if isinstance(question_id, str) and isinstance(voter_id, str):
+                if isinstance(option_id, str) and text is None:
+                    records.append(VoteRecord(question_id=question_id, voter_id=voter_id, option_id=option_id))
+                elif isinstance(text, str) and option_id is None:
+                    records.append(VoteRecord(question_id=question_id, voter_id=voter_id, text=text))
         return records
 
     async def save_vote(self, vote: VoteRecord) -> None:
@@ -76,7 +80,7 @@ class FirestoreRepository:
             {
                 "question": vote.question_id,
                 "voter": vote.voter_id,
-                "option": vote.option_id,
+                **({"text": vote.text} if vote.text is not None else {"option": vote.option_id}),
                 "at": SERVER_TIMESTAMP,
             }
         )
