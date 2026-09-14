@@ -72,22 +72,20 @@ questions:
       - id: unused
         label: "No agent use in the past 30 days"
 
-  - id: reliability
-    title: "How often do you need to substantially correct an agent's work?"
-    subtitle: "Think about the past 30 days. Substantial correction means more than minor edits."
+  - id: autonomy
+    title: "How do you typically supervise AI agents?"
+    subtitle: "Choose the level of oversight that best matches your workflow."
     options:
-      - id: always
-        label: "Almost always"
-      - id: often
-        label: "Often"
-      - id: sometimes
-        label: "Sometimes"
-      - id: rarely
-        label: "Rarely"
-      - id: never
-        label: "Never"
-      - id: unsure
-        label: "Not enough recent experience"
+      - id: step
+        label: "Step-by-step approval (review every action or prompt)"
+      - id: review
+        label: "Review the final output or diff before accepting"
+      - id: guardrails
+        label: "Let them run multi-step tasks within set guardrails"
+      - id: full
+        label: "Autonomous execution with minimal review"
+      - id: unused
+        label: "I do not use agents in real workflows yet"
 
   - id: blocker
     title: "What is your main barrier to wider use of AI agents?"

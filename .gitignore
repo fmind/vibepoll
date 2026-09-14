@@ -6,5 +6,5 @@
 __pycache__/
 dist/
 htmlcov/
-tmp/
 test-results/
+tmp/
