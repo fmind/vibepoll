@@ -25,6 +25,10 @@ description = "Format, check, and test everything"
 # a deploy instead.
 run = ["mise run format", "mise run check", "mise run test"]
 
+[tasks."build:image"]
+description = "Build the linux/amd64 production OCI image as a local archive"
+run = 'mkdir -p tmp && docker buildx build --platform linux/amd64 --tag "$APP_NAME:local" --output "type=docker,dest=$IMAGE_ARCHIVE" .'
+
 [tasks.check]
 alias = "c"
 description = "Run all static checks"
@@ -50,13 +54,14 @@ run = "hadolint Dockerfile"
 description = "Check formatting and the lockfile"
 run = ["uv lock --check", "uv run --locked ruff format --check", "dprint check"]
 
+[tasks."check:image"]
+description = "Build and scan the production OCI image"
+depends = ["build:image"]
+run = 'env -u TRIVY_CONFIG trivy image --input "$IMAGE_ARCHIVE" --platform linux/amd64 --exit-code=1 --severity HIGH,CRITICAL --ignore-unfixed --scanners vuln,secret'
+
 [tasks."check:leaks"]
 description = "Scan the working tree and recent commits for leaked secrets"
 depends = ["check:leaks:tree", "check:leaks:history"]
-
-[tasks."check:leaks:tree"]
-description = "Scan working-tree files, including untracked files"
-run = "gitleaks dir . --redact=100 --verbose"
 
 [tasks."check:leaks:history"]
 description = "Scan the latest 100 commits reachable from HEAD"
@@ -66,6 +71,10 @@ run = 'gitleaks git --redact=100 --log-opts="--max-count=100 --ignore-missing HE
 [tasks."check:leaks:staged"]
 description = "Scan only staged changes before committing"
 run = "gitleaks git --redact=100 --staged --verbose"
+
+[tasks."check:leaks:tree"]
+description = "Scan working-tree files, including untracked files"
+run = "gitleaks dir . --redact=100 --verbose"
 
 [tasks."check:lint"]
 description = "Lint Python sources (ruff)"
@@ -79,14 +88,16 @@ run = "uv run --locked ty check"
 description = "Scan Python dependencies for known vulnerabilities"
 run = "env -u TRIVY_CONFIG trivy fs --exit-code=1 --severity HIGH,CRITICAL --scanners vuln uv.lock"
 
-[tasks."check:image"]
-description = "Build and scan the production OCI image"
-depends = ["build:image"]
-run = 'env -u TRIVY_CONFIG trivy image --input "$IMAGE_ARCHIVE" --platform linux/amd64 --exit-code=1 --severity HIGH,CRITICAL --ignore-unfixed --scanners vuln,secret'
+[tasks.deploy]
+description = "Deploy to Cloud Run (requires --project)"
+raw_args = true
+run = "uv run --locked python scripts/deploy.py"
 
-[tasks."build:image"]
-description = "Build the linux/amd64 production OCI image as a local archive"
-run = 'mkdir -p tmp && docker buildx build --platform linux/amd64 --tag "$APP_NAME:local" --output "type=docker,dest=$IMAGE_ARCHIVE" .'
+[tasks.export]
+alias = "e"
+description = "Export poll results to JSON and HTML"
+raw_args = true
+run = "uv run --locked python scripts/export.py"
 
 [tasks.format]
 alias = "f"
@@ -97,13 +108,13 @@ depends = ["format:dprint", "format:python"]
 description = "Format JSON, Markdown, TOML, YAML with dprint"
 run = "dprint fmt --allow-no-files"
 
-[tasks."format:python"]
-description = "Format Python sources and imports (ruff)"
-run = ["mise run format:imports", "mise run format:ruff"]
-
 [tasks."format:imports"]
 description = "Sort Python imports"
 run = "uv run --locked ruff check --select=I --fix --force-exclude"
+
+[tasks."format:python"]
+description = "Format Python sources and imports (ruff)"
+run = ["mise run format:imports", "mise run format:ruff"]
 
 [tasks."format:ruff"]
 description = "Format Python sources"
@@ -123,8 +134,3 @@ run = "uv run --locked pytest --cov --cov-fail-under=85"
 alias = "w"
 description = "Run the dev server with live reload"
 run = 'GRANIAN_PORT="${PORT:-8080}" uv run --locked granian --interface asgi --factory --reload --host 0.0.0.0 vibepoll.app:create_app'
-
-[tasks.deploy]
-description = "Deploy to Cloud Run (requires --project)"
-raw_args = true
-run = "uv run --locked python scripts/deploy.py"
