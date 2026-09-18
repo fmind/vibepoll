@@ -53,8 +53,8 @@ def test_render_html_report_contains_event_and_results() -> None:
     assert "Great session!" in html
     # "." is filtered as placeholder in substantive messages
     assert ">.<" not in html
-    assert "downloadJSON" in html
-    assert "poll-data" in html
+    assert "downloadJSON" not in html
+    assert "poll-data" not in html
 
 
 def test_export_generates_valid_files(tmp_path: Path) -> None:

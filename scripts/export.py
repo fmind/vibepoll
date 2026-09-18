@@ -174,9 +174,6 @@ def render_html_report(data: dict[str, Any]) -> str:
     placeholders = {".", "na", "n/a", "none", "/", "test"}
     substantive_messages = [m for m in raw_messages if m.strip().lower() not in placeholders and len(m.strip()) > 2]
 
-    # Generate JSON string for embedded payload
-    json_embedded = json.dumps(data, indent=2, ensure_ascii=False)
-
     # Build question sections HTML
     questions_html = []
     for idx, q in enumerate(questions, start=1):
@@ -818,7 +815,6 @@ def render_html_report(data: dict[str, Any]) -> str:
       <div class="nav-actions">
         <a href="{html.escape(event["luma_url"])}" class="btn" target="_blank" rel="noopener noreferrer">Luma Event ↗</a>
         <a href="{html.escape(event["repo_url"])}" class="btn" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
-        <button type="button" class="btn btn-primary" onclick="downloadJSON()">Download JSON</button>
       </div>
     </div>
   </nav>
@@ -923,26 +919,6 @@ def render_html_report(data: dict[str, Any]) -> str:
       <p>Source code on <a href="{html.escape(event["repo_url"])}" target="_blank">GitHub (fmind/vibepoll)</a> · Open source under MIT</p>
     </div>
   </footer>
-
-  <!-- Embedded JSON Data for client-side download -->
-  <script type="application/json" id="poll-data">
-{json_embedded}
-  </script>
-
-  <script>
-    function downloadJSON() {{
-      const text = document.getElementById('poll-data').textContent;
-      const blob = new Blob([text], {{ type: 'application/json;charset=utf-8' }});
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = '{poll["id"]}-results.json';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    }}
-  </script>
 </body>
 </html>
 """
