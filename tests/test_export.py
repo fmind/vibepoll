@@ -104,6 +104,7 @@ def test_export_generates_valid_files(tmp_path: Path) -> None:
 
     html_text = html_path.read_text(encoding="utf-8")
     assert "53" in html_text
-    assert "403" in html_text
+    assert "403" not in html_text
     assert "Agentic AI Night #1" in html_text
     assert "Model Context Protocol (MCP)" in html_text
+    assert "Speakers &amp; Organizing Team" in html_text

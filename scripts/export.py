@@ -53,12 +53,13 @@ AAIF_LUXEMBOURG_METADATA: dict[str, Any] = {
     },
     "organizers": [
         {"name": "Médéric Hurier (Fmind)", "role": "Lead AI Architect, Fmind.dev"},
-        {"name": "Hazal Kantarci", "role": "Partner, AI & Data Science Transformation Leader, PwC Luxembourg"},
-        {"name": "Mustafa Aldemir", "role": "Head of Artificial Intelligence, ArcelorMittal"},
-        {"name": "Hajar Khizou", "role": "Data Engineering & Science Manager, SustainCERT"},
         {"name": "Maxime Cordy", "role": "Senior Scientist & Professor, SnT (Uni.lu)"},
-        {"name": "Pablo Fernández de Diego", "role": "Senior Solutions Architect, AWS"},
-        {"name": "Thomas Scherer", "role": "Cloud Architect, Google"},
+        {"name": "Mustafa Aldemir", "role": "Head of Artificial Intelligence, ArcelorMittal"},
+        {"name": "Hazal Kantarci", "role": "Partner, AI & Data Science Transformation Leader, PwC Luxembourg"},
+        {"name": "Hajar Khizou", "role": "Data Engineering & Science Manager, SustainCERT"},
+        {"name": "Max Amordeluso", "role": "Data & AI Leader, Europe North, AWS Luxembourg"},
+        {"name": "Irina Neagu Muceli", "role": "Sr Cloud & AI Specialist, Microsoft"},
+        {"name": "Antoine Leffondré", "role": "Representative Google Cloud Luxembourg"},
     ],
 }
 
@@ -830,7 +831,6 @@ def render_html_report(data: dict[str, Any]) -> str:
         <span class="meta-pill">📅 {html.escape(event["date_formatted"])}</span>
         <span class="meta-pill">📍 {html.escape(event["venue"])}</span>
         <span class="meta-pill">👥 <strong>{poll["participants"]}</strong> live voters</span>
-        <span class="meta-pill">🗳️ <strong>{poll["total_ballots"]}</strong> ballots cast</span>
         <span class="meta-pill">⚡ Powered by <a href="{html.escape(event["repo_url"])}" target="_blank">vibepoll</a></span>
       </div>
     </div>
@@ -905,7 +905,7 @@ def render_html_report(data: dict[str, Any]) -> str:
         The evening featured the introduction of the local chapter, an interactive live poll with <strong>vibepoll</strong>, and a keynote talk by <strong>Maxime Cordy</strong> on <em>"How Reliable Are Your AI Agents? And How Research Can Help"</em>.
       </p>
 
-      <h3 style="font-size: 1rem; font-weight: 700; margin-top: 1.25rem;">Organizing Team</h3>
+      <h3 style="font-size: 1rem; font-weight: 700; margin-top: 1.25rem;">Speakers &amp; Organizing Team</h3>
       <div class="speakers-grid">
 {org_markup}
       </div>
@@ -949,6 +949,11 @@ def main() -> int:
         help=f"Directory to save JSON and HTML results (default: {DEFAULT_OUTPUT_DIR})",
     )
     parser.add_argument(
+        "--output-name",
+        default=None,
+        help="Base name for output files without extension (defaults to aaif-luxembourg-1-vibepoll-results or poll id)",
+    )
+    parser.add_argument(
         "--from-json",
         type=Path,
         default=None,
@@ -966,26 +971,34 @@ def main() -> int:
     if args.from_json:
         print(f"Loading results from {args.from_json}...", file=sys.stderr)  # noqa: T201
         data = json.loads(args.from_json.read_text(encoding="utf-8"))
+        if poll_id.startswith("aaif-luxembourg-1") or data.get("event", {}).get("id", "").startswith(
+            "aaif-luxembourg-1"
+        ):
+            data["event"] = AAIF_LUXEMBOURG_METADATA.copy()
     else:
         print(f"Fetching results from Firestore (project={args.project}, poll={poll_id})...", file=sys.stderr)  # noqa: T201
         data = asyncio.run(fetch_results(args.project, poll_id, config))
 
+    # Base filename
+    if args.output_name:
+        base_name = args.output_name
+    elif poll_id.startswith("aaif-luxembourg-1"):
+        base_name = "aaif-luxembourg-1-vibepoll-results"
+    else:
+        base_name = poll_id
+
     # File names
-    json_path = output_dir / f"{poll_id}.json"
-    html_path = output_dir / f"{poll_id}.html"
-    index_html_path = output_dir / "index.html"
-    results_json_path = output_dir / "results.json"
+    json_path = output_dir / f"{base_name}.json"
+    html_path = output_dir / f"{base_name}.html"
 
     # Save JSON
     json_content = json.dumps(data, indent=2, ensure_ascii=False) + "\n"
     json_path.write_text(json_content, encoding="utf-8")
-    results_json_path.write_text(json_content, encoding="utf-8")
     print(f"✓ Saved JSON: {json_path} ({len(json_content)} bytes)", file=sys.stderr)  # noqa: T201
 
     # Save HTML
     html_content = render_html_report(data)
     html_path.write_text(html_content, encoding="utf-8")
-    index_html_path.write_text(html_content, encoding="utf-8")
     print(f"✓ Saved HTML: {html_path} ({len(html_content)} bytes)", file=sys.stderr)  # noqa: T201
 
     print(f"\nSuccessfully exported results for {data['event']['title']}!", file=sys.stderr)  # noqa: T201
